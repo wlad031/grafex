@@ -1,0 +1,7 @@
+.idea
+.bloop
+.metals
+.gradle
+.bsp
+target
+app/
