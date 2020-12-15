@@ -5,36 +5,46 @@ import cats.data.EitherT
 import cats.effect.IO
 import cats.implicits.toBifunctorOps
 import com.grafex.core.GrafexError
-import pureconfig.ConfigReader.Result
 import pureconfig.ConfigSource
 import pureconfig.generic.auto._
 
+import java.nio.file.Files
+
 object Config {
+
+  private val DEFAULT_CONFIG_DIR = ".config/grafex"
+  private val DEFAULT_CONFIG_FILE_NAME = "grafex.conf"
 
   // TODO: implement reading of multiple configs in the correct way
   def read(context: Startup.Context): EitherT[IO, ConfigReadingError, GrafexConfig] = {
-    EitherT(IO {
-      val defaultConfig: Result[GrafexConfig] = ConfigSource.default.load[GrafexConfig]
-      val providedConfigs: List[Result[GrafexConfig]] =
-        context.configPaths.map(ConfigSource.file).map(_.load[GrafexConfig])
-      if (providedConfigs.nonEmpty) {
-        ???
-      } else {
-        defaultConfig.leftMap(f => ConfigReadingError(f.toString()))
+
+    val dirPath = context.userHome.resolve(DEFAULT_CONFIG_DIR)
+    val filePath = dirPath.resolve(DEFAULT_CONFIG_FILE_NAME)
+
+    val sources = ConfigSource.default.withFallback(ConfigSource.file(filePath))
+
+    val load = IO {
+      if (!Files.exists(filePath)) {
+        if (!Files.exists(dirPath)) Files.createDirectories(dirPath)
+        Files.createFile(filePath)
       }
-    })
+      sources.load[GrafexConfig].leftMap(f => ConfigReadingError(f.toString()))
+    }
+
+    EitherT(load)
   }
 
   case class GrafexConfig(
+    accountId: String,
     metaDataSource: GrafexConfig.MetaDataSourceConfig
   )
 
   object GrafexConfig {
 
     sealed trait MetaDataSourceConfig
-      case class Foo(
-        url: String
-      ) extends MetaDataSourceConfig
+    case class Foo(
+      url: String
+    ) extends MetaDataSourceConfig
 
     implicit val semigroup: Semigroup[GrafexConfig] = (x: GrafexConfig, y: GrafexConfig) => {
       y // TODO: implement

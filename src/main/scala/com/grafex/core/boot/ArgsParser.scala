@@ -14,7 +14,7 @@ import java.nio.file.Path
 object ArgsParser {
 
   def parse(args: List[String]): EitherT[IO, ArgsFastExit, Startup.Context] = {
-    EitherT.fromEither(command.parse(args) match {
+    EitherT.fromEither(command.parse(args, sys.env) match {
       case Left(help)                      => Left(ArgsParsingError(help.toString()))
       case Right(_: Startup.Help)          => Left(HelpRequest(command.showHelp))
       case Right(Startup.Version(version)) => Left(VersionRequest(version))
@@ -33,6 +33,9 @@ object ArgsParser {
         case (_, true)      => Verbosity.Debug()
       }
     )
+
+    val userHomeOpt = Opts
+      .env[Path]("HOME", help = "User home directory")
 
     val configOpt = Opts
       .options[Path](short = "c", long = "config", help = "Paths to configuration files")
@@ -164,22 +167,24 @@ object ArgsParser {
     val dataOpt = Opts.arguments[String]("data")
 
     val serviceOpt = (
+      userHomeOpt,
       configOpt,
       verbosityOpt,
       serviceSubCommand
-    ).mapN((configPaths, verbosity, listeners) => {
-      Startup.Context.Service(configPaths, verbosity, listeners)
+    ).mapN((userHome, configPaths, verbosity, listeners) => {
+      Startup.Context.Service(userHome, configPaths, verbosity, listeners)
     })
 
     val normalOpt = (
+      userHomeOpt,
       configOpt,
       verbosityOpt,
       callsOpt,
       inputTypeOpt,
       outputTypeOpt,
       dataOpt
-    ).mapN((configPaths, verbosity, call, inputType, outputType, params) => {
-      Startup.Context.Cli(configPaths, verbosity, call, inputType match {
+    ).mapN((userHome, configPaths, verbosity, call, inputType, outputType, params) => {
+      Startup.Context.Cli(userHome, configPaths, verbosity, call, inputType match {
         case InputType.Json => Startup.Context.Cli.Data.Json(params.head)
       }, inputType, outputType)
     })

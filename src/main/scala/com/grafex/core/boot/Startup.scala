@@ -25,6 +25,7 @@ object Startup {
   case class Help() extends Startup
 
   sealed trait Context extends Startup {
+    val userHome: Path
     val configPaths: List[Path]
     val verbosity: Verbosity
   }
@@ -32,12 +33,14 @@ object Startup {
   object Context {
 
     case class Service(
+      override val userHome: Path,
       override val configPaths: List[Path],
       override val verbosity: Verbosity,
       listeners: NonEmptyList[Listener]
     ) extends Context
 
     case class Cli(
+      override val userHome: Path,
       override val configPaths: List[Path],
       override val verbosity: Verbosity,
       calls: NonEmptyList[Mode.Call],
