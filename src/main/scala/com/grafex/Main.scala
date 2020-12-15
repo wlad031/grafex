@@ -27,7 +27,7 @@ object Main extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {
     (for {
       startupCtx <- ArgsParser.parse(args)
-      config     <- Config.read(startupCtx)
+      config     <- Config.read(startupCtx)()
       runCtx     <- buildRunContext(startupCtx)
       mode       <- buildModeContainer(startupCtx, runCtx, config)
       exitCode   <- launch(startupCtx, runCtx, mode)
