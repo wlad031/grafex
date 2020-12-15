@@ -15,13 +15,17 @@ object Config {
   private val DEFAULT_CONFIG_DIR = ".config/grafex"
   private val DEFAULT_CONFIG_FILE_NAME = "grafex.conf"
 
-  // TODO: implement reading of multiple configs in the correct way
   def read(context: Startup.Context): EitherT[IO, ConfigReadingError, GrafexConfig] = {
 
     val dirPath = context.userHome.resolve(DEFAULT_CONFIG_DIR)
     val filePath = dirPath.resolve(DEFAULT_CONFIG_FILE_NAME)
 
-    val sources = ConfigSource.default.withFallback(ConfigSource.file(filePath))
+    val sources = context.configPaths
+      .reverse
+      .map(ConfigSource.file)
+      .foldLeft(ConfigSource.empty)(_ withFallback _)
+      .withFallback(ConfigSource.file(filePath))
+      .withFallback(ConfigSource.default)
 
     val load = IO {
       if (!Files.exists(filePath)) {
