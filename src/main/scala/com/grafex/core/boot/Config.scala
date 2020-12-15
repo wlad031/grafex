@@ -1,6 +1,5 @@
 package com.grafex.core.boot
 
-import cats.Semigroup
 import cats.data.EitherT
 import cats.effect.IO
 import cats.implicits.toBifunctorOps
@@ -20,8 +19,7 @@ object Config {
     val dirPath = context.userHome.resolve(DEFAULT_CONFIG_DIR)
     val filePath = dirPath.resolve(DEFAULT_CONFIG_FILE_NAME)
 
-    val sources = context.configPaths
-      .reverse
+    val sources = context.configPaths.reverse
       .map(ConfigSource.file)
       .foldLeft(ConfigSource.empty)(_ withFallback _)
       .withFallback(ConfigSource.file(filePath))
@@ -49,10 +47,6 @@ object Config {
     case class Foo(
       url: String
     ) extends MetaDataSourceConfig
-
-    implicit val semigroup: Semigroup[GrafexConfig] = (x: GrafexConfig, y: GrafexConfig) => {
-      y // TODO: implement
-    }
   }
 
   case class ConfigReadingError(msg: String) extends GrafexError
