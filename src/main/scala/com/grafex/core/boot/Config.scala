@@ -51,10 +51,12 @@ object Config {
 
   private val notStrictSettings: ConfigParseOptions = ConfigParseOptions.defaults.setAllowMissing(true)
 
-  private def parseOptionalFile(path: Path): Result[TConfig] = unsafeToReaderResult(
-    ConfigFactory.parseFile(path.toFile, notStrictSettings),
-    onIOFailure = Some(CannotReadFile(path, _))
-  )
+  private def parseOptionalFile(path: Path): Result[TConfig] = {
+    unsafeToReaderResult(
+      ConfigFactory.parseFile(path.toFile, notStrictSettings),
+      onIOFailure = Some(CannotReadFile(path, _))
+    )
+  }
 
   private def optionalFileSource(path: Path): ConfigObjectSource = ConfigObjectSource(parseOptionalFile(path))
 
