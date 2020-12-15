@@ -6,3 +6,6 @@
 .bsp
 target
 app/
+project/*
+!project/build.properties
+!project/plugins.sbt
