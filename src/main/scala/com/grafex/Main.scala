@@ -43,8 +43,8 @@ object Main extends IOApp {
   def buildRunContext(startupContext: Startup.Context): EitherT[IO, GrafexError, RunContext[IO]] =
     EitherT.right(for {
       l <- startupContext match {
-        case Startup.Context.Service(_, _, _)              => Slf4jLogger.fromName[IO]("grafex-service")
-        case Startup.Context.Cli(_, verbosity, _, _, _, _) => Slf4jLogger.fromName[IO](verbosity.asLoggerName)
+        case Startup.Context.Service(_, _, _, _)              => Slf4jLogger.fromName[IO]("grafex-service")
+        case Startup.Context.Cli(_, _, verbosity, _, _, _, _) => Slf4jLogger.fromName[IO](verbosity.asLoggerName)
       }
     } yield new RunContext[IO] {
       override val clock: Clock[IO] = Clock.create[IO]
@@ -95,14 +95,14 @@ object Main extends IOApp {
     modeContainer: Mode[IO]
   ): EitherT[IO, GrafexError, ExitCode] = startupCtx match {
 
-    case Startup.Context.Cli(_, _, calls, data, inputType, outputType) =>
+    case Startup.Context.Cli(_, _, _, calls, data, inputType, outputType) =>
       for {
         req      <- EitherT.fromEither[IO](buildCliRequest(calls, data, inputType, outputType))
         res      <- modeContainer(req)
         exitCode <- EitherT.right(printWithSuccess(res.body))
       } yield exitCode
 
-    case Startup.Context.Service(_, _, listeners) =>
+    case Startup.Context.Service(_, _, _, listeners) =>
       listeners
         .map({
           case Listener.Web()    => WebListener(startupCtx, modeContainer)
