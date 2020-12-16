@@ -35,9 +35,12 @@ libraryDependencies ++= Seq(
     "org.http4s" %% "http4s-blaze-client"
   ).map(_ % "0.21.6"),
   Seq(
+    "com.github.pureconfig" %% "pureconfig",
+    "com.github.pureconfig" %% "pureconfig-cats-effect"
+  ).map(_ % "0.14.0"),
+  Seq(
     "ch.qos.logback"           % "logback-classic"   % "1.2.3",
     "io.chrisdavenport"        %% "log4cats-slf4j"   % "1.1.1",
-    "com.github.pureconfig"    %% "pureconfig"       % "0.14.0",
     "com.monovore"             %% "decline"          % "1.3.0",
     "com.lihaoyi"              %% "fansi"            % "0.2.7",
     "org.neo4j.driver"         % "neo4j-java-driver" % "4.1.1",
