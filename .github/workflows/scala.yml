@@ -15,9 +15,15 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+      - name: Check Scala code formatting
+        run: sbt scalafmtCheck
+      - name: Compile
+        run: sbt clean compile
       - name: Run tests
-        run: sbt clean coverage test coverageReport
+        run: sbt coverage test coverageReport
       - name: Run codecov tool
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: bash <(curl -s https://codecov.io/bash)
+      - name: Generate Scaladoc documentation
+        run: sbt doc

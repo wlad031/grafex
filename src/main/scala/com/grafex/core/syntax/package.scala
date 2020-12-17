@@ -1,6 +1,6 @@
 package com.grafex.core
 
-import com.grafex.core.conversion.{ActionRequestDecoder, ActionResponseEncoder}
+import com.grafex.core.conversion.{ ActionRequestDecoder, ActionResponseEncoder }
 
 package object syntax {
   implicit final class AbstractModeOps[A](private val value: A) extends AnyVal {

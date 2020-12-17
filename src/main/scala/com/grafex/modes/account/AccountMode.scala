@@ -1,12 +1,17 @@
 package com.grafex.modes.account
 
-import cats.data.{EitherT, NonEmptyList}
+import cats.data.{ EitherT, NonEmptyList }
 import cats.effect.IO
 import com.grafex.core.Mode.MFunction
 import com.grafex.core.conversion.semiauto._
-import com.grafex.core.conversion.{ActionRequestDecoder, ActionResponseEncoder, ModeRequestDecoder, ModeResponseEncoder}
+import com.grafex.core.conversion.{
+  ActionRequestDecoder,
+  ActionResponseEncoder,
+  ModeRequestDecoder,
+  ModeResponseEncoder
+}
 import com.grafex.core.syntax.ActionRequestOps
-import com.grafex.core.{InputType, Mode, ModeError, Node, OutputType}
+import com.grafex.core._
 import io.circe.generic.auto._
 import io.circe.syntax.EncoderOps
 

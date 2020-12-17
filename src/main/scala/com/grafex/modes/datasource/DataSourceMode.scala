@@ -30,13 +30,12 @@ class DataSourceMode(metaDataSource: MetaDataSource[IO])(implicit runContext: Ru
 
 object DataSourceMode {
   val definition: Mode.Definition.Basic = Mode.Definition.Basic(
-    Mode.Key(Mode.Name("ds-connection"),
-    Mode.Version("1")),
+    Mode.Key(Mode.Name("ds-connection"), Mode.Version("1")),
     description = None,
     Set(InputType.Json),
     Set(OutputType.Json),
     Set(
-      actions.GetDataSourceMeta.definition,
+      actions.GetDataSourceMeta.definition
     )
   )
 
