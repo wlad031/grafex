@@ -1,18 +1,18 @@
 package com.grafex
 
-import cats.data.{EitherT, NonEmptyList}
-import cats.effect.{Clock, ExitCode, IO, IOApp}
-import com.grafex.core.boot.Config.GrafexConfig
+import cats.data.{ EitherT, NonEmptyList }
+import cats.effect.{ Clock, ExitCode, IO, IOApp }
+import com.grafex.core.boot.Config.GrafexConfiguration
 import com.grafex.core.boot.Startup.Listener
-import com.grafex.core.boot.{ArgsParser, Config, Startup}
+import com.grafex.core.boot.{ ArgsParser, Config, Startup }
 import com.grafex.core.implicits._
-import com.grafex.core.listeners.{SocketListener, WebListener}
-import com.grafex.core.{ArgsParsingError, VersionRequest, _}
+import com.grafex.core.listeners.{ SocketListener, WebListener }
+import com.grafex.core.{ ArgsParsingError, VersionRequest, _ }
+import com.grafex.modes.account.AccountMode
+import com.grafex.modes.account.AccountMode._
 import com.grafex.modes.datasource.DataSourceMode
 import com.grafex.modes.describe.DescribeMode
 import com.grafex.modes.describe.DescribeMode._
-import com.grafex.modes.account.AccountMode
-import com.grafex.modes.account.AccountMode._
 import com.grafex.modes.graph.GraphMode
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
@@ -27,7 +27,7 @@ object Main extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {
     (for {
       startupCtx <- ArgsParser.parse(args)
-      config     <- Config.read(startupCtx)()
+      config     <- Config.load(startupCtx)()
       runCtx     <- buildRunContext(startupCtx)
       mode       <- buildModeContainer(startupCtx, runCtx, config)
       exitCode   <- launch(startupCtx, runCtx, mode)
@@ -54,17 +54,16 @@ object Main extends IOApp {
   def buildModeContainer(
     startupCtx: Startup.Context,
     runCtx: RunContext[IO],
-    config: GrafexConfig
+    config: GrafexConfiguration
   ): EitherT[IO, GrafexError, Mode[IO]] = {
     implicit val rCtx: RunContext[IO] = runCtx
 
     val metaDataSource = config.metaDataSource match {
-      case x: GrafexConfig.Foo => new Neo4jMetaDataSource(x)
+      case x: GrafexConfiguration.Foo => new Neo4jMetaDataSource(x)
     }
 
     val modes: List[Mode[IO]] = List(
-      Mode.instance(DataSourceMode.definition.toLatest)(
-        new DataSourceMode(metaDataSource)),
+      Mode.instance(DataSourceMode.definition.toLatest)(new DataSourceMode(metaDataSource)),
       Mode.instance(GraphMode.definition.toLatest)(new GraphMode(metaDataSource)),
       Mode.instance(AccountMode.definition.toLatest)(new AccountMode(null))
     )

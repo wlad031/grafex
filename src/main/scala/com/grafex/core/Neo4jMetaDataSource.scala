@@ -2,7 +2,7 @@ package com.grafex.core
 
 import cats.data.EitherT
 import cats.effect.{ContextShift, IO, Resource}
-import com.grafex.core.boot.Config.GrafexConfig
+import com.grafex.core.boot.Config.GrafexConfiguration
 import com.grafex.core.internal.neo4j.{logging => Neo4JLogging}
 import neotypes.cats.effect.implicits._
 import neotypes.implicits.mappers.all._
@@ -10,7 +10,7 @@ import neotypes.implicits.syntax.cypher._
 import neotypes.{GraphDatabase, Session}
 import org.neo4j.driver.{AuthTokens, Config}
 
-class Neo4jMetaDataSource(config: GrafexConfig.Foo) extends MetaDataSource[IO] {
+class Neo4jMetaDataSource(config: GrafexConfiguration.Foo) extends MetaDataSource[IO] {
 
   // TODO: pass context shift as a parameter
   private[this] implicit val cs: ContextShift[IO] = IO.contextShift(scala.concurrent.ExecutionContext.global)

@@ -1,4 +1,6 @@
-package com.grafex.core.boot
+package com.grafex
+package core
+package boot
 
 import cats.effect.{ IO, Resource }
 import org.scalatest.flatspec.AnyFlatSpec
@@ -9,12 +11,19 @@ import java.nio.file.attribute.BasicFileAttributes
 
 class ConfigTest extends AnyFlatSpec {
 
-  "Config reader" should "skip non existing default config" in {
-    val userHome = Paths.get("/tmp/grafex/.config/grafex")
+  "Default home config path" should "point to $HOME/.config/grafex/grafex.conf" in {
+    val userHomeStr = "/tmp/grafex"
+    val userHome = Paths.get(userHomeStr)
+    val path = Config.buildHomeConfigPath(createContext(Nil, userHome))
+    assert(path == Paths.get(s"$userHomeStr/.config/grafex/grafex.conf"))
+  }
 
-    deleteTempConfigs(userHome).use(_ =>
+  "Config reader" should "skip non existing default config" in {
+    val configDir = Paths.get("/tmp/grafex/.config/grafex")
+
+    deleteTempConfigs(configDir).use(_ =>
       IO {
-        Config.read(createContext(Nil))().value.unsafeRunSync() match {
+        Config.load(createContext(Nil))().value.unsafeRunSync() match {
           case Left(err)  => fail(s"Unexpected error happened: $err")
           case Right(res) => assert(res.accountId == "test")
         }
@@ -23,12 +32,12 @@ class ConfigTest extends AnyFlatSpec {
   }
 
   it should "read existing default config" in {
-    val userHome = Paths.get("/tmp/grafex/.config/grafex")
-    val configPath = userHome.resolve("grafex.conf")
+    val configDir = Paths.get("/tmp/grafex/.config/grafex")
+    val configPath = configDir.resolve("grafex.conf")
 
     val resource = for {
-      _    <- deleteTempConfigs(userHome)
-      path <- createTempConfigs(userHome, configPath)
+      _    <- deleteTempConfigs(configDir)
+      path <- createTempConfigs(configDir, configPath)
       f <- Resource.fromAutoCloseable {
         IO.delay {
           val writer = new BufferedWriter(new FileWriter(path.toFile))
@@ -42,7 +51,7 @@ class ConfigTest extends AnyFlatSpec {
     resource
       .use(_ => {
         Config
-          .read(createContext(Nil))(configPath)
+          .load(createContext(Nil))(configPath)
           .value
           .map({
             case Left(err)  => fail(s"Unexpected error happened: $err")
@@ -52,8 +61,8 @@ class ConfigTest extends AnyFlatSpec {
       .unsafeRunSync()
   }
 
-  def deleteTempConfigs(userHome: Path): Resource[IO, Boolean] = {
-    Resource.make(IO { deleteDir(userHome) })(_ => IO { deleteDir(userHome) })
+  def deleteTempConfigs(configDir: Path): Resource[IO, Boolean] = {
+    Resource.make(IO { deleteDir(configDir) })(_ => IO { deleteDir(configDir) })
   }
 
   private def deleteDir(dir: Path) = {
@@ -78,12 +87,12 @@ class ConfigTest extends AnyFlatSpec {
     }
   }
 
-  def createTempConfigs(userHome: Path, configPath: Path): Resource[IO, Path] = {
+  def createTempConfigs(configDir: Path, configPath: Path): Resource[IO, Path] = {
     Resource
       .make(IO {
-        Files.createDirectories(userHome)
+        Files.createDirectories(configDir)
         Files.createFile(configPath)
-      })(_ => IO { deleteDir(userHome) })
+      })(_ => IO { deleteDir(configDir) })
   }
 
   def createContext(configPaths: List[Path], userHome: Path = Paths.get("/tmp/grafex")): Startup.Context = {
