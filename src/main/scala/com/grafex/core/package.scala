@@ -1,9 +1,9 @@
 package com.grafex
 
-import java.io.PrintStream
-
 import cats.effect.{ Clock, ExitCode, IO }
 import io.chrisdavenport.log4cats.Logger
+
+import java.io.PrintStream
 
 package object core {
 
@@ -15,24 +15,34 @@ package object core {
     }
 
   trait GrafexError { self =>
-
-    def successIO: IO[ExitCode] =
-      IO {
-        System.out.println(self)
-        ExitCode.Success
-      }
-
-    def errorIO: IO[ExitCode] =
-      IO {
-        System.err.println(self)
-        ExitCode.Error
-      }
+    def errorIO: IO[ExitCode] = IO {
+      System.err.println(self)
+      ExitCode.Error
+    }
   }
 
   sealed trait ArgsFastExit extends GrafexError
-  case class ArgsParsingError(help: String) extends ArgsFastExit
-  case class HelpRequest(help: String) extends ArgsFastExit
-  case class VersionRequest(version: String) extends ArgsFastExit
+
+  case class ArgsParsingError(help: String) extends ArgsFastExit {
+    override def errorIO: IO[ExitCode] = IO {
+      System.err.println(help)
+      ExitCode.Error
+    }
+  }
+
+  case class HelpRequest(help: String) extends ArgsFastExit {
+    def successIO: IO[ExitCode] = IO {
+      System.out.println(help)
+      ExitCode.Success
+    }
+  }
+
+  case class VersionRequest(version: String) extends ArgsFastExit {
+    def successIO: IO[ExitCode] = IO {
+      System.out.println(version)
+      ExitCode.Success
+    }
+  }
 
   trait ModeError extends GrafexError
   case class UnknownAction(actionKey: Mode.Action.Key) extends ModeError

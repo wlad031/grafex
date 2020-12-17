@@ -142,6 +142,11 @@ object ArgsParser {
             )
           )
       })
+      .orNone
+      .map({
+        case Some(inputType) => inputType
+        case None            => InputType.Json // default input type
+      })
 
     val outputTypeOpt = Opts
       .option[String](long = "out", help = "output type")
@@ -164,7 +169,7 @@ object ArgsParser {
         case None             => OutputType.Json // default output type
       })
 
-    val dataOpt = Opts.arguments[String]("data")
+    val dataOpt = Opts.arguments[String]("data").orEmpty
 
     val serviceOpt = (
       userHomeOpt,
@@ -184,8 +189,12 @@ object ArgsParser {
       outputTypeOpt,
       dataOpt
     ).mapN((userHome, configPaths, verbosity, call, inputType, outputType, params) => {
+      // TODO: this should be refactored
       Startup.Context.Cli(userHome, configPaths, verbosity, call, inputType match {
-        case InputType.Json => Startup.Context.Cli.Data.Json(params.head)
+        case InputType.Json => Startup.Context.Cli.Data.Json(params match {
+          case Nil => "{}"
+          case x :: _ => x
+        })
       }, inputType, outputType)
     })
 
