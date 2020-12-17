@@ -1,5 +1,5 @@
 ThisBuild / organization := "com.grafex"
-ThisBuild / version := "0.0.1-SNAPSHOT"
+ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.4"
 
 resolvers ++= Seq(
@@ -36,7 +36,8 @@ libraryDependencies ++= Seq(
   ).map(_ % "0.21.6"),
   Seq(
     "com.github.pureconfig" %% "pureconfig",
-    "com.github.pureconfig" %% "pureconfig-cats-effect"
+    "com.github.pureconfig" %% "pureconfig-cats-effect",
+    "com.github.pureconfig" %% "pureconfig-circe",
   ).map(_ % "0.14.0"),
   Seq(
     "ch.qos.logback"           % "logback-classic"   % "1.2.3",

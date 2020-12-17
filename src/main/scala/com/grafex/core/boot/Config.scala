@@ -4,12 +4,14 @@ import cats.data.EitherT
 import cats.effect.IO
 import cats.implicits.toBifunctorOps
 import com.grafex.core.GrafexError
-import com.typesafe.config.{ ConfigFactory, ConfigParseOptions, Config => TConfig }
+import com.typesafe.config.{ConfigFactory, ConfigParseOptions, Config => TConfig}
+import io.circe.Json
 import pureconfig.ConfigReader.Result
 import pureconfig.backend.ErrorUtil.unsafeToReaderResult
 import pureconfig.error.CannotReadFile
 import pureconfig.generic.auto._
-import pureconfig.{ ConfigObjectSource, ConfigSource }
+import pureconfig.module.circe._
+import pureconfig.{ ConfigObjectSource, ConfigReader, ConfigSource }
 
 import java.nio.file.Path
 
@@ -28,7 +30,7 @@ object Config {
       .withFallback(ConfigSource.default)
 
     val load = IO {
-      sources.load[GrafexConfig].leftMap(f => ConfigReadingError(f.toString()))
+      sources.load[GrafexConfig].leftMap(f => ConfigReadingError(f.prettyPrint(2)))
     }
 
     EitherT(load)
@@ -36,12 +38,14 @@ object Config {
 
   case class GrafexConfig(
     accountId: String,
-    metaDataSource: GrafexConfig.MetaDataSourceConfig
+    metaDataSource: GrafexConfig.MetaDataSourceConfig,
+    modes: List[Json]
   )
 
   object GrafexConfig {
 
     sealed trait MetaDataSourceConfig
+
     case class Foo(
       url: String
     ) extends MetaDataSourceConfig
