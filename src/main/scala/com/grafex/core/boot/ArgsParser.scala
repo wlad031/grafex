@@ -1,25 +1,30 @@
-package com.grafex.core.boot
+package com.grafex
+package core
+package boot
 
+import cats.data.NonEmptyList
 import cats.data.Validated.{ Invalid, Valid }
-import cats.data.{ EitherT, NonEmptyList }
-import cats.effect.IO
 import cats.syntax.all._
-import com.grafex.build
-import com.grafex.core._
 import com.grafex.core.boot.Startup.{ Listener, Verbosity }
 import com.monovore.decline.{ Command, Opts }
 
 import java.nio.file.Path
 
+/** Contains functionality for parsing command line arguments and environment variables.
+  *
+  */
 object ArgsParser {
 
-  def parse(args: List[String]): EitherT[IO, ArgsFastExit, Startup.Context] = {
-    EitherT.fromEither(command.parse(args, sys.env) match {
+  /** Parses the list of arguments and returns either [[ArgsFastExit]] in case of parsing failed
+    * or [[Startup.Context]] otherwise.
+    */
+  def parse(args: List[String]): Either[ArgsFastExit, Startup.Context] = {
+    command.parse(args, sys.env) match {
       case Left(help)                      => Left(ArgsParsingError(help.toString()))
       case Right(_: Startup.Help)          => Left(HelpRequest(command.showHelp))
       case Right(Startup.Version(version)) => Left(VersionRequest(version))
       case Right(ctx: Startup.Context)     => Right(ctx)
-    })
+    }
   }
 
   private val command: Command[Startup] = {
@@ -190,12 +195,21 @@ object ArgsParser {
       dataOpt
     ).mapN((userHome, configPaths, verbosity, call, inputType, outputType, params) => {
       // TODO: this should be refactored
-      Startup.Context.Cli(userHome, configPaths, verbosity, call, inputType match {
-        case InputType.Json => Startup.Context.Cli.Data.Json(params match {
-          case Nil => "{}"
-          case x :: _ => x
-        })
-      }, inputType, outputType)
+      Startup.Context.Cli(
+        userHome,
+        configPaths,
+        verbosity,
+        call,
+        inputType match {
+          case InputType.Json =>
+            Startup.Context.Cli.Data.Json(params match {
+              case Nil    => "{}"
+              case x :: _ => x
+            })
+        },
+        inputType,
+        outputType
+      )
     })
 
     Command(build.BuildInfo.name, "Grafex", helpFlag = false)(

@@ -12,13 +12,13 @@ import io.circe.parser.parse
 
 /** Represents any possible "mode".
   *
-  * Basically, "mode" is just an [[MFunction]] with input type [[Request]] and output type [[Response]].
-  * Also, it provides a [[Definition]] of itself.
+  * Basically, "mode" is just an [[Mode.MFunction]] with input type [[Mode.Request]] and output type [[Mode.Response]].
+  * Also, it provides a [[Mode.Definition]] of itself.
   *
   * Such modes could be easily composed in different ways:
   *   1. `orElse` composition;
-  *   2. `andThen` composition;
-  *   3. aliasing.
+  *   1. `andThen` composition;
+  *   1. aliasing.
   *
   * @tparam F the type of the effect
   */
@@ -29,22 +29,28 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends MFunction[F, Reques
 
   /** `orElse` composition checks whether request suits better for this of that mode and then delegates request to it.
     *
+    * @group Mode constructing
+    *
     * @param that another mode to be composed
     * @return new composed mode
     */
   def orElse(that: Mode[F]): Mode[F] = new OrElse[F](left = this, right = that)
 
   /** `andThen` composition allows to chain modes in the following way:
+    * {{{
     *                                     ┌────────────────────────────────────┐
     *      ┌───────┐  ┌──────┐  ┌────────┐┘ ┌───────────┐  ┌──────┐  ┌────────┐└>┌───────────┐  ┌────────┐
     *      │user's │─>│mode 1│─>│response│─>│combine    │─>│mode 2│─>│response│─>│combine    │  │final   │
     *      │request│  └──────┘  └────────┘┌>│request and│  └──────┘  └────────┘  │both       │─>│response│
     *      └───────┘──────────────────────┘ │response   │                        │responses  │  └────────┘
     *                                       └───────────┘                        └───────────┘
+    * }}}
     * @note The chain could be as long as needed.
     * @note Default request+response and response+response combiners parse everything as JSONs
-    *       and then merge JSONs using [[io.circe.Json.deepMerge(Json)]]
+    *       and then merge JSONs using [[io.circe.Json.deepMerge]]
     * @note In general, combiners aren't associative.
+    *
+    * @group Mode constructing
     *
     * @param other another mode to be chained
     * @return new composed mode
@@ -75,7 +81,10 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends MFunction[F, Reques
   }
 
   // TODO: improve this doc
-  /** `alias` is not exactly a composition, but allows to override a definition for the given mode. */
+  /** `alias` is not exactly a composition, but allows to override a definition for the given mode.
+    *
+    * @group Mode constructing
+    * */
   def alias(callOverrides: CallOverrides, definitionCreator: Definition => Definition.Alias): Mode[F] =
     new Alias[F](mode = this)(callOverrides, definitionCreator)
 }
@@ -86,13 +95,15 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends MFunction[F, Reques
   */
 object Mode {
 
-  /** Represents any function from some A to [[Either]] B or [[ModeError]] wrapped in some effect F.
+  /** Represents any function from some A to [[scala.Either]] B or [[ModeError]] wrapped in some effect F.
     *
     * @tparam F the type of the effect
     * @tparam A the type of function input
     * @tparam B the type of function output
     */
-  trait MFunction[F[_], A, B] extends (A => EitherT[F, ModeError, B])
+  trait MFunction[F[_], A, B] extends (A => EitherT[F, ModeError, B]) {
+    override def apply(request: A): EitherT[F, ModeError, B]
+  }
 
   sealed trait DynamicMFunction[F[_], A, B] extends MFunction[F, A, B]
 
@@ -101,11 +112,9 @@ object Mode {
       new Web[F, A, B](config)
     }
 
-    private final class Web[F[_] : ConcurrentEffect : RunContext, A, B] (
+    private final class Web[F[_] : ConcurrentEffect : RunContext, A, B](
       config: Web.Config
     ) extends DynamicMFunction[F, A, B] {
-      import io.circe.generic.auto._
-      import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
       import org.http4s.client.blaze._
 
       import scala.concurrent.ExecutionContext.global
@@ -147,7 +156,7 @@ object Mode {
     f: MFunction[F, A, B]
   ): Mode[F] = ???
 
-  def dyn[F[_] : Sync : RunContext, A, B](f: MFunction[F, A, B]): DynamicMFunction[F, A, B] = {???}
+  def dyn[F[_] : Sync : RunContext, A, B](f: MFunction[F, A, B]): DynamicMFunction[F, A, B] = { ??? }
 
   /** Mode's "request" data type.
     *
@@ -398,6 +407,16 @@ object Mode {
 
   // region Definitions
 
+  final class Dependency[F[_] : Sync : RunContext] private (
+    val mode: Mode[F],
+    private val definition: Definition.Callable
+  ) {
+    def key: Mode.Key = definition.modeKey
+    def generateCall: Mode.Call = ???
+  }
+
+//  case class DependencyCreationError(mode: Mode[_], definition: Definition.Callable) extends GrafexError
+
   final case class Key(name: Name, version: Version)
 
   sealed trait Definition {
@@ -422,7 +441,7 @@ object Mode {
       override val isLatest: Boolean = false
     ) extends Definition
         with Callable {
-      private[this] def suitsOneAction(actionKey: Action.Key): Boolean =
+      private[this] def suitsOneAction(actionKey: Action.Key): Boolean = // TODO: implement
         true //actions.map(_.suitsFor(actionKey)).size == 1
 
       override def suitsFor(call: Mode.Call): Boolean = call match {

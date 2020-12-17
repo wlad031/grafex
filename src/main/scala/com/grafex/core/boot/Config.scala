@@ -16,30 +16,30 @@ import pureconfig.{ ConfigObjectSource, ConfigSource }
 
 import java.nio.file.Path
 
-/** Contains all the functionality for reading application configuration files.
+/** Contains functionality for reading application configuration files.
   *
   * @example {{{
-  * val startupContext: Startup.Context = ??? // some startup context
+  * val startupContext: Startup.Context = ... // some startup context
   *
   * import com.grafex.core.boot.Config
   * import com.grafex.core.boot.Config.{ ConfigurationReadingError, GrafexConfiguration }
   *
-  * val config: EitherT[IO, ConfigurationReadingError, GrafexConfiguration] = Config.read(startupContext)()
+  * val config: EitherT[IO, ConfigurationReadingError, GrafexConfiguration] = Config.load(startupContext)()
   * }}}
   */
 object Config {
 
-  /** Loads the [[GrafexConfiguration]].
+  /** Loads the [[Config.GrafexConfiguration]].
     *
     * Sources (descending precedence):
     *   1. config files specified as argument parameters;
-    *   2. default config;
-    *   3. "baked" in the application resources.
+    *   1. default config;
+    *   1. "baked" in the application resources.
     *
     * @param context the startup context
     * @param defaultConfigPath default config path (default value
-    *                          is built using [[Config.buildHomeConfigPath(Startup.Context)]])
-    * @return [[EitherT]] of [[IO]] with loaded config or [[ConfigurationReadingError]]
+    *                          is built using [[Config.buildHomeConfigPath]])
+    * @return [[cats.data.EitherT]] of [[cats.effect.IO]] with loaded config or [[Config.ConfigurationReadingError]]
     */
   def load(
     context: Startup.Context
@@ -60,7 +60,7 @@ object Config {
     EitherT(load)
   }
 
-  /** Returns the default config path which will be located in `$HOME/.config/grafex/grafex.conf`.
+  /** Returns the default config path which will be located in `\$HOME/.config/grafex/grafex.conf`.
     *
     * @param context the startup context
     */

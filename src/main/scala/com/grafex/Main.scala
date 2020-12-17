@@ -22,11 +22,11 @@ object Main extends IOApp {
   /** Grafex application main entrypoint.
     *
     * @param args the list of command line arguments
-    * @return exit code wrapped in [[IO]]
+    * @return exit code wrapped in [[cats.effect.IO]]
     */
   override def run(args: List[String]): IO[ExitCode] = {
     (for {
-      startupCtx <- ArgsParser.parse(args)
+      startupCtx <- EitherT.fromEither[IO](ArgsParser.parse(args))
       config     <- Config.load(startupCtx)()
       runCtx     <- buildRunContext(startupCtx)
       mode       <- buildModeContainer(startupCtx, runCtx, config)

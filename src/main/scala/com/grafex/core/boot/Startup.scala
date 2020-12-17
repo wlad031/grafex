@@ -21,15 +21,27 @@ sealed trait Startup
 
 /** Contains implementations of [[Startup]]. */
 object Startup {
-  case class Version(version: String) extends Startup
-  case class Help() extends Startup
 
+  /** "Startup mode" if application started with `--version` argument. */
+  final case class Version(version: String) extends Startup
+
+  /** "Startup mode" if application started with `--help` argument. */
+  final case class Help() extends Startup
+
+  /** Represents the startup context if application started in some of normal modes. */
   sealed trait Context extends Startup {
-    val userHome: Path
-    val configPaths: List[Path]
-    val verbosity: Verbosity
+
+    /** Path to the home directory. */
+    def userHome: Path
+
+    /** Additional configuration file paths. */
+    def configPaths: List[Path]
+
+    /** Represents how much information application will be printing during it's running time. */
+    def verbosity: Verbosity
   }
 
+  /** Contains implementations of [[Context]]. */
   object Context {
 
     case class Service(
@@ -67,7 +79,7 @@ object Startup {
     def asLoggerName: String = this match {
       case Verbosity.Normal()  => "grafex"
       case Verbosity.Verbose() => "grafex-v"
-      case Verbosity.Debug()   => "grafex-debug"
+      case Verbosity.Debug()   => "grafex-d"
     }
   }
 

@@ -37,7 +37,7 @@ libraryDependencies ++= Seq(
   Seq(
     "com.github.pureconfig" %% "pureconfig",
     "com.github.pureconfig" %% "pureconfig-cats-effect",
-    "com.github.pureconfig" %% "pureconfig-circe",
+    "com.github.pureconfig" %% "pureconfig-circe"
   ).map(_ % "0.14.0"),
   Seq(
     "ch.qos.logback"           % "logback-classic"   % "1.2.3",
@@ -93,4 +93,8 @@ lazy val root = project
 Test / testOptions += Tests.Argument(
   framework = Some(TestFrameworks.ScalaTest),
   args = List("-oSD")
+)
+
+scalacOptions in (Compile, doc) ++= Seq(
+  "-groups"
 )
