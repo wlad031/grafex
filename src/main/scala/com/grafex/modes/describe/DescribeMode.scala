@@ -10,8 +10,8 @@ import com.grafex.core.syntax.ActionRequestOps
 import io.circe.generic.auto._
 
 class DescribeMode(
-                    otherDefinitions: => Seq[Mode.Definition.Callable],
-                    amILatest: Boolean = true
+  otherDefinitions: => Seq[Mode.Definition.Callable],
+  amILatest: Boolean = true
 )(implicit runContext: RunContext[IO])
     extends MFunction[IO, DescribeMode.Request, DescribeMode.Response] {
   import DescribeMode.actions
@@ -24,7 +24,7 @@ class DescribeMode(
   override def apply(request: DescribeMode.Request): EitherT[IO, ModeError, DescribeMode.Response] = {
     implicit val fm: DescribeMode.Metadata = fullMetadata
     request match {
-      case req: actions.ListModeKeys.Request      => EitherT.fromEither(actions.ListModeKeys())
+      case req: actions.ListModeKeys.Request      => EitherT.fromEither(actions.ListModeKeys(req))
       case req: actions.GetModeDefinition.Request => EitherT.fromEither(actions.GetModeDefinition(req))
     }
   }
@@ -54,18 +54,46 @@ object DescribeMode {
       val definition: Mode.Action.Definition =
         Mode.Action.Definition(Mode.Action.Key(Mode.Action.Name("list-mode-keys")), None, Set())
 
-      def apply()(implicit fullMetadata: Metadata): Either[ModeError, DescribeMode.Response] = Right(
-        ListModeKeys.Response(
-          fullMetadata.definitionsMap
-            .map({
-              case (k, d) => ModeKey(k.name.toString, k.version.toString, d.isLatest)
-            })
-            .toList
-        )
+      def apply(request: Request)(implicit fullMetadata: Metadata): Either[ModeError, DescribeMode.Response] = Right(
+        request.requestMode match {
+          case Some(RequestMode.Full()) =>
+            ListModeKeys.Response.Full(
+              fullMetadata.definitionsMap
+                .map({ case (k, d) => ModeKey(k.name.toString, k.version.toString, d.isLatest) })
+                .toList
+            )
+          // Short is default request mode
+          case _ =>
+            ListModeKeys.Response.Short(
+              fullMetadata.definitionsMap
+                .map({ case (k, _) => s"${k.name.toString}.${k.version.toString}" })
+                .toList
+            )
+        }
       )
 
-      case class Request() extends DescribeMode.Request
-      case class Response(modeKeys: List[ModeKey]) extends DescribeMode.Response
+      case class Request(requestMode: Option[RequestMode]) extends DescribeMode.Request
+
+      sealed trait Response extends DescribeMode.Response
+
+      object Response {
+
+        case class Full(modeKeys: List[ModeKey]) extends Response
+        object Full {
+          implicit val enc: ActionResponseEncoder[Full] = deriveOnlyJsonActionResponseEncoder
+        }
+
+        case class Short(modeKeys: List[String]) extends Response
+        object Short {
+          implicit val enc: ActionResponseEncoder[Short] = deriveOnlyJsonActionResponseEncoder
+        }
+      }
+
+      sealed trait RequestMode
+      object RequestMode {
+        case class Full() extends RequestMode
+        case class Short() extends RequestMode
+      }
 
       case class ModeKey(name: String, version: String, isVersionLatest: Boolean)
 
