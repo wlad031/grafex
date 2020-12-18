@@ -1,4 +1,4 @@
 # Grafex
 
-[![Scala CI status](https://github.com/wlad031/grafex/workflows/Scala%20CI/badge.svg)](https://github.com/wlad031/grafex/actions)
-[![codecov](https://codecov.io/gh/wlad031/grafex/branch/master/graph/badge.svg?token=03CR5XP5OM)](https://codecov.io/gh/wlad031/grafex)
+[![build](https://img.shields.io/github/workflow/status/wlad031/grafex/Scala%20CI?style=flat-square)](https://github.com/wlad031/grafex/actions)
+[![codecov](https://img.shields.io/codecov/c/github/wlad031/grafex?style=flat-square)](https://codecov.io/gh/wlad031/grafex)
