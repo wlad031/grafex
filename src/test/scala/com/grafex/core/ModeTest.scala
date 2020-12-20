@@ -10,12 +10,12 @@ import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import io.circe.generic.auto._
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.funsuite.AnyFunSuite
 
-class ModeTest extends AnyFlatSpec {
+class ModeTest extends AnyFunSuite {
   import ModeTest._
 
-  "Basic mode" should "return ByModeNameOrVersion error for wrong mode name" in {
+  test("Basic mode should return ByModeNameOrVersion error for wrong mode name") {
     createMode("mode")()()
       .apply(
         Mode.Request(
@@ -36,13 +36,13 @@ class ModeTest extends AnyFlatSpec {
       )
       .value
       .unsafeRunSync() match {
-      case Left(InvalidRequest.InappropriateCall.ByModeNameOrVersion(_, _)) => succeed
+      case Left(InvalidRequest.InappropriateCall.ByModeNameOrVersion(_, _)) => // succeed
       case Left(_)                                                          => fail("Got wrong error")
       case Right(_)                                                         => fail("Got successful result")
     }
   }
 
-  it should "return ByModeNameOrVersion error for wrong mode version" in {
+  test("Basic mode should return ByModeNameOrVersion error for wrong mode version") {
     createMode("mode", "1")()()
       .apply(
         Mode.Request(
@@ -63,13 +63,13 @@ class ModeTest extends AnyFlatSpec {
       )
       .value
       .unsafeRunSync() match {
-      case Left(InvalidRequest.InappropriateCall.ByModeNameOrVersion(_, _)) => succeed
+      case Left(InvalidRequest.InappropriateCall.ByModeNameOrVersion(_, _)) => // succeed
       case Left(_)                                                          => fail("Got wrong error")
       case Right(_)                                                         => fail("Got successful result")
     }
   }
 
-  it should "return success result for appropriate single call" in {
+  test("Basic mode should return success result for appropriate single call") {
     createMode("test-mode")()()
       .apply(
         Mode.Request(
@@ -95,7 +95,7 @@ class ModeTest extends AnyFlatSpec {
     }
   }
 
-  "OrElse mode" should "choose requested mode from 2 basic modes" in {
+  test("OrElse mode should choose requested mode from 2 basic modes") {
     val left = createMode("left-mode")()()
     val right = createMode("right-mode")()()
     val leftOrRight = left orElse right

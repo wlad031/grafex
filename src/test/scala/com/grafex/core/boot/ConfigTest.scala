@@ -3,22 +3,22 @@ package core
 package boot
 
 import cats.effect.{ IO, Resource }
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.{ BufferedWriter, FileWriter, IOException }
 import java.nio.file._
 import java.nio.file.attribute.BasicFileAttributes
 
-class ConfigTest extends AnyFlatSpec {
+class ConfigTest extends AnyFunSuite {
 
-  "Default home config path" should "point to $HOME/.config/grafex/grafex.conf" in {
+  test("Default home config path should point to $HOME/.config/grafex/grafex.conf") {
     val userHomeStr = "/tmp/grafex"
     val userHome = Paths.get(userHomeStr)
     val path = Config.buildHomeConfigPath(createContext(Nil, userHome))
     assert(path == Paths.get(s"$userHomeStr/.config/grafex/grafex.conf"))
   }
 
-  "Config reader" should "skip non existing default config" in {
+  test("Config reader should skip non existing default config") {
     val configDir = Paths.get("/tmp/grafex/.config/grafex")
 
     deleteTempConfigs(configDir).use(_ =>
@@ -31,7 +31,7 @@ class ConfigTest extends AnyFlatSpec {
     )
   }
 
-  it should "read existing default config" in {
+  test("Config reader shoud read existing default config") {
     val configDir = Paths.get("/tmp/grafex/.config/grafex")
     val configPath = configDir.resolve("grafex.conf")
 
