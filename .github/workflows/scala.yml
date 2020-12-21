@@ -15,14 +15,8 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 11
-      - name: Clean and retrieve dependencies
-        run: sbt clean update
-      - name: Check formatting
-        run: sbt scalafmtCheck
-      - name: Compile
-        run: sbt compile
-      - name: Run tests
-        run: sbt coverage test coverageReport
+      - name: Run sbt build
+        run: sbt clean update scalafmtCheck compile coverage test coverageReport
       - name: Run codecov tool
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
