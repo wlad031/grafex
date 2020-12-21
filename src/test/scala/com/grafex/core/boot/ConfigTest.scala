@@ -15,7 +15,7 @@ class ConfigTest extends AnyFunSuite {
     val userHomeStr = "/tmp/grafex"
     val userHome = Paths.get(userHomeStr)
     val path = Config.buildHomeConfigPath(createContext(Nil, userHome))
-    assert(path == Paths.get(s"$userHomeStr/.config/grafex/grafex.conf"))
+    assert(path === Paths.get(s"$userHomeStr/.config/grafex/grafex.conf"))
   }
 
   test("Config reader should skip non existing default config") {
@@ -25,7 +25,7 @@ class ConfigTest extends AnyFunSuite {
       IO {
         Config.load(createContext(Nil))().value.unsafeRunSync() match {
           case Left(err)  => fail(s"Unexpected error happened: $err")
-          case Right(res) => assert(res.accountId == "test")
+          case Right(res) => assert(res.accountId === "test")
         }
       }
     )
@@ -55,7 +55,7 @@ class ConfigTest extends AnyFunSuite {
           .value
           .map({
             case Left(err)  => fail(s"Unexpected error happened: $err")
-            case Right(res) => assert(res.accountId == "new-test")
+            case Right(res) => assert(res.accountId === "new-test")
           })
       })
       .unsafeRunSync()

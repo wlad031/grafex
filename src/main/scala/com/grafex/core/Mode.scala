@@ -71,10 +71,10 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends MFunction[F, Reques
         json2 <- parse(req.body).leftMap(_ => IllegalModeState())
       } yield json1.deepMerge(json2).spaces2
     }
-  ): Either[InvalidRequest.ModesNotCombinable, Mode[F]] = {
+  ): Either[ModesNotCombinable, Mode[F]] = {
     if (!this.definition.doesSupport(OutputType.Json) && other.definition.doesSupport(InputType.Json) ||
         !this.definition.doesSupport(OutputType.Json) && other.definition.doesSupport(OutputType.Json)) {
-      Left(InvalidRequest.ModesNotCombinable(this.definition, other.definition))
+      Left(ModesNotCombinable(this.definition, other.definition))
     } else {
       Right(new AndThen[F](first = this, next = other))
     }
@@ -213,9 +213,16 @@ object Mode {
   sealed trait Call {
     def actionKey: Action.Key
   }
+
   object Call {
     final case class Full(modeKey: Mode.Key, override val actionKey: Action.Key) extends Call
     final case class Latest(modeName: Mode.Name, override val actionKey: Action.Key) extends Call
+
+    def full(modeKey: Mode.Key, actionKey: Action.Key): Mode.Call.Full = Full(modeKey, actionKey)
+    def latest(modeName: Mode.Name, actionKey: Action.Key): Mode.Call.Latest = Latest(modeName, actionKey)
+
+    def apply(modeKey: Mode.Key, actionKey: Action.Key): Mode.Call.Full = full(modeKey, actionKey)
+    def apply(modeName: Mode.Name, actionKey: Action.Key): Mode.Call.Latest = latest(modeName, actionKey)
   }
 
   type CallOverrides = Map[NonEmptyList[Call], NonEmptyList[Call]]
@@ -400,7 +407,13 @@ object Mode {
       case class ByModeNameOrVersion(modeDef: Definition, request: Request) extends InappropriateCall
       case class ByNumberOfCalls(modeDef: Definition, request: Request) extends InappropriateCall
     }
-    case class ModesNotCombinable(first: Definition, second: Definition) extends InvalidRequest
+  }
+
+  case class ModesNotCombinable(first: Definition, second: Definition) extends ModeError
+
+  sealed trait ModeInitializationError extends GrafexError
+  object ModeInitializationError {
+    final case class NeededCallUnsupported() extends ModeInitializationError
   }
 
   // endregion

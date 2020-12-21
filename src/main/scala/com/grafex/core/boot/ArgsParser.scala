@@ -87,49 +87,16 @@ object ArgsParser {
     val callsOpt = Opts
       .argument[String]("calls")
       .mapValidated(calls => {
-        calls
-          .split(">")
-          .toList
-          .map(call =>
-            call.split("/", 2).toList match {
-              case mode :: action :: Nil =>
-                mode.split("""\.""", 2).toList match {
-                  case modeName :: version :: Nil =>
-                    Right(
-                      Mode.Call.Full(
-                        Mode.Key(Mode.Name(modeName), Mode.Version(version)),
-                        Mode.Action.Key(Mode.Action.Name(action))
-                      )
-                    )
-                  case modeName :: Nil =>
-                    Right(
-                      Mode.Call.Latest(
-                        Mode.Name(modeName),
-                        Mode.Action.Key(Mode.Action.Name(action))
-                      )
-                    )
-                  case _ => ???
-                }
-              case _ =>
-                Left(
-                  s"""Invalid mode call: $call
-                   |Please use the following pattern: <mode>/<version>/<action>""".stripMargin
-                )
-            }
-          )
-          .map(x => x.map(NonEmptyList(_, Nil)))
-          .reduce((e1, e2) => {
-            e1 match {
-              case x @ Left(_) => x
-              case Right(l) =>
-                e2 match {
-                  case y @ Left(_) => y
-                  case Right(r)    => Right(l ::: r)
-                }
-            }
-          }) match {
-          case Left(e)  => Invalid(NonEmptyList(e, Nil))
-          case Right(v) => Valid(v)
+        ModeCallsParser.parse(calls) match {
+          case Left(err) =>
+            Invalid(
+              NonEmptyList(
+                s"""Error parsing calls: $calls - $err
+                   |Please use the following pattern: <mode>.<version>/<action>""".stripMargin,
+                Nil
+              )
+            )
+          case Right(value) => Valid(value)
         }
       })
 
