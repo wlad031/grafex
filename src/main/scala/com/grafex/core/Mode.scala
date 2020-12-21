@@ -210,19 +210,41 @@ object Mode {
     */
   case class Response(body: String)
 
+  /** Represents how mode and some of it's actions can be found and called. */
   sealed trait Call {
+
+    /** Returns the [[Action.Key]] of the call, which should be presented in any implementation of [[Call]]. */
     def actionKey: Action.Key
   }
 
+  /** Contains implementations of [[Call]]. */
   object Call {
-    final case class Full(modeKey: Mode.Key, override val actionKey: Action.Key) extends Call
-    final case class Latest(modeName: Mode.Name, override val actionKey: Action.Key) extends Call
 
-    def full(modeKey: Mode.Key, actionKey: Action.Key): Mode.Call.Full = Full(modeKey, actionKey)
-    def latest(modeName: Mode.Name, actionKey: Action.Key): Mode.Call.Latest = Latest(modeName, actionKey)
+    /** Represents the case when mode called using it's name, version and action name. */
+    final case class Full(
+      modeKey: Mode.Key,
+      override val actionKey: Action.Key
+    ) extends Call
 
-    def apply(modeKey: Mode.Key, actionKey: Action.Key): Mode.Call.Full = full(modeKey, actionKey)
-    def apply(modeName: Mode.Name, actionKey: Action.Key): Mode.Call.Latest = latest(modeName, actionKey)
+    /** Represents the case when mode called using it's name and action name.
+      * In this case the version which is marked as latest will be used.
+      */
+    final case class Latest(
+      modeName: Mode.Name,
+      override val actionKey: Action.Key
+    ) extends Call
+
+    /** Creates new mode full call.
+      *
+      * @note It's just an alias for mode full call main constructor, added just for simplifying the creation of call.
+      */
+    def apply(modeKey: Mode.Key, actionKey: Action.Key): Mode.Call.Full = Full(modeKey, actionKey)
+
+    /** Creates new mode latest call.
+      *
+      * @note It's just an alias for mode latest call main constructor, added just for simplifying the creation of call.
+      */
+    def apply(modeName: Mode.Name, actionKey: Action.Key): Mode.Call.Latest = Latest(modeName, actionKey)
   }
 
   type CallOverrides = Map[NonEmptyList[Call], NonEmptyList[Call]]
