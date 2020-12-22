@@ -3,7 +3,7 @@ package modes
 package account
 
 import cats.data.{ EitherT, NonEmptyList }
-import cats.effect.IO
+import cats.effect.Sync
 import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
@@ -17,12 +17,12 @@ import com.grafex.core.syntax.ActionRequestOps
 import io.circe.generic.auto._
 import io.circe.syntax.EncoderOps
 
-class AccountMode private (graphMode: Mode[IO])(implicit runContext: RunContext[IO])
-    extends MFunction[IO, AccountMode.Request, AccountMode.Response] {
+class AccountMode[F[_] : Sync : RunContext] private (graphMode: Mode[F])
+    extends MFunction[F, AccountMode.Request, AccountMode.Response] {
   import AccountMode.actions
 
-  override def apply(request: AccountMode.Request): EitherT[IO, ModeError, AccountMode.Response] = {
-    implicit val gm: Mode[IO] = graphMode
+  override def apply(request: AccountMode.Request): EitherT[F, ModeError, AccountMode.Response] = {
+    implicit val gm: Mode[F] = graphMode
     (request match {
       case req: actions.CreateAccountAction.Request => actions.CreateAccountAction(req)
     }).map(x => x: AccountMode.Response)
@@ -43,7 +43,7 @@ object AccountMode {
     )
   )
 
-  def apply(graphMode: Mode[IO])(implicit rc: RunContext[IO]): Either[ModeInitializationError, AccountMode] = {
+  def apply[F[_] : Sync : RunContext](graphMode: Mode[F]): Either[ModeInitializationError, AccountMode[F]] = {
     if (List(
           actions.CreateAccountAction.createNodeGraphModeCall
         ).exists(call => !graphMode.definition.suitsFor(call, InputType.Json, OutputType.Json))) {
@@ -71,7 +71,9 @@ object AccountMode {
 
       val createNodeGraphModeCall = unsafeParseSingleModeCall("graph.1/create-node")
 
-      def apply(request: Request)(implicit graphMode: Mode[IO]): EitherT[IO, ModeError, Response] = {
+      def apply[F[_] : Sync : RunContext](
+        request: Request
+      )(implicit graphMode: Mode[F]): EitherT[F, ModeError, Response] = {
         val call = Mode.Call.Full(
           Mode.Key(Mode.Name("graph"), Mode.Version("1")),
           Mode.Action.Key(Mode.Action.Name("create-node"))

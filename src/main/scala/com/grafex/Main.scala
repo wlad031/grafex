@@ -73,7 +73,7 @@ object Main extends IOApp {
       )
       describeMode <- Mode.instance(
         DescribeMode.definition.toLatest,
-        DescribeMode(
+        DescribeMode[IO](
           modes
             .map(_.definition)
             .map(_.asInstanceOf[Mode.Definition.Basic])
