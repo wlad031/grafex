@@ -142,14 +142,24 @@ object Mode {
     * @tparam B the type of mode output
     * @return instantiated basic mode
     */
-  def instance[F[_] : Sync : RunContext, A, B](
-    definition: Definition.Basic
-  )(f: MFunction[F, A, B])(
+  def instance[F[_] : Sync : RunContext, A, B](definition: Definition.Basic, f: MFunction[F, A, B])(
     implicit
     modeRequestDecoder: ModeRequestDecoder[A],
     modeResponseEncoder: ModeResponseEncoder[B]
   ): Mode[F] =
     new Basic[F, A, B](f, definition)
+
+  def instance[F[_] : Sync : RunContext, A, B](
+    definition: Definition.Basic,
+    fe: Either[ModeInitializationError, MFunction[F, A, B]]
+  )(
+    implicit
+    modeRequestDecoder: ModeRequestDecoder[A],
+    modeResponseEncoder: ModeResponseEncoder[B]
+  ): Either[ModeInitializationError, Mode[F]] = fe match {
+    case Left(error) => Left(error)
+    case Right(f)    => Right(instance[F, A, B](definition, f))
+  }
 
   /** Instantiates the dynamic mode. */
   def dynamic[F[_] : Sync : RunContext, A : ModeRequestDecoder, B : ModeResponseEncoder](
@@ -455,6 +465,10 @@ object Mode {
   final case class Key(name: Name, version: Version)
 
   sealed trait Definition {
+    def suitsFor(call: Mode.Call, inputType: InputType, outputType: OutputType): Boolean = {
+      suitsFor(call) && doesSupport(inputType) && doesSupport(outputType)
+    }
+
     def suitsFor(call: Mode.Call): Boolean
     def doesSupport(inputType: InputType): Boolean
     def doesSupport(outputType: OutputType): Boolean

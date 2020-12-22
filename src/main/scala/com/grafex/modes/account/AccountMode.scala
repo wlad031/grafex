@@ -1,8 +1,11 @@
-package com.grafex.modes.account
+package com.grafex
+package modes
+package account
 
 import cats.data.{ EitherT, NonEmptyList }
 import cats.effect.IO
-import com.grafex.core.Mode.MFunction
+import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
+import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.conversion.{
   ActionRequestDecoder,
@@ -11,11 +14,11 @@ import com.grafex.core.conversion.{
   ModeResponseEncoder
 }
 import com.grafex.core.syntax.ActionRequestOps
-import com.grafex.core._
 import io.circe.generic.auto._
 import io.circe.syntax.EncoderOps
 
-class AccountMode(graphMode: Mode[IO]) extends MFunction[IO, AccountMode.Request, AccountMode.Response] {
+class AccountMode private (graphMode: Mode[IO])(implicit runContext: RunContext[IO])
+    extends MFunction[IO, AccountMode.Request, AccountMode.Response] {
   import AccountMode.actions
 
   override def apply(request: AccountMode.Request): EitherT[IO, ModeError, AccountMode.Response] = {
@@ -40,6 +43,16 @@ object AccountMode {
     )
   )
 
+  def apply(graphMode: Mode[IO])(implicit rc: RunContext[IO]): Either[ModeInitializationError, AccountMode] = {
+    if (List(
+          actions.CreateAccountAction.createNodeGraphModeCall
+        ).exists(call => !graphMode.definition.suitsFor(call, InputType.Json, OutputType.Json))) {
+      Left(ModeInitializationError.NeededCallUnsupported())
+    } else {
+      Right(new AccountMode(graphMode))
+    }
+  }
+
   sealed trait Request
   sealed trait Response
   sealed trait Error extends ModeError
@@ -55,6 +68,8 @@ object AccountMode {
             |""".stripMargin),
         Set()
       )
+
+      val createNodeGraphModeCall = unsafeParseSingleModeCall("graph.1/create-node")
 
       def apply(request: Request)(implicit graphMode: Mode[IO]): EitherT[IO, ModeError, Response] = {
         val call = Mode.Call.Full(

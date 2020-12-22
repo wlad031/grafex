@@ -2,6 +2,7 @@ package com.grafex.modes.datasource
 
 import cats.data.EitherT
 import cats.effect.IO
+import com.grafex.core.Mode.ModeInitializationError
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.conversion.{
@@ -14,7 +15,7 @@ import com.grafex.core.syntax.ActionRequestOps
 import com.grafex.modes.datasource.DataSourceMode.actions
 import io.circe.generic.auto._
 
-class DataSourceMode(metaDataSource: MetaDataSource[IO])(implicit runContext: RunContext[IO])
+class DataSourceMode private (metaDataSource: MetaDataSource[IO])(implicit runContext: RunContext[IO])
     extends Mode.MFunction[IO, DataSourceMode.Request, DataSourceMode.Response] {
 
   override def apply(
@@ -38,6 +39,12 @@ object DataSourceMode {
       actions.GetDataSourceMeta.definition
     )
   )
+
+  def apply(
+    metaDataSource: MetaDataSource[IO]
+  )(implicit rc: RunContext[IO]): Either[ModeInitializationError, DataSourceMode] = {
+    Right(new DataSourceMode(metaDataSource))
+  }
 
   sealed trait Request
   sealed trait Response
