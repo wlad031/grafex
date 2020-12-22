@@ -2,14 +2,14 @@ package com.grafex.modes.describe
 
 import cats.data.EitherT
 import cats.effect.IO
-import com.grafex.core.Mode.{ MFunction, Param }
+import com.grafex.core.Mode.{ MFunction, ModeInitializationError, Param }
 import com.grafex.core._
 import com.grafex.core.conversion._
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.syntax.ActionRequestOps
 import io.circe.generic.auto._
 
-class DescribeMode(
+class DescribeMode private (
   otherDefinitions: => Seq[Mode.Definition.Callable],
   amILatest: Boolean = true
 )(implicit runContext: RunContext[IO])
@@ -41,6 +41,13 @@ object DescribeMode {
       actions.GetModeDefinition.definition
     )
   )
+
+  def apply(
+    otherDefinitions: => Seq[Mode.Definition.Callable],
+    amILatest: Boolean = true
+  )(implicit rc: RunContext[IO]): Either[ModeInitializationError, DescribeMode] = {
+    Right(new DescribeMode(otherDefinitions, amILatest))
+  }
 
   sealed trait Request
   sealed trait Response

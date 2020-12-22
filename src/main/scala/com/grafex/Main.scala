@@ -9,10 +9,8 @@ import com.grafex.core.implicits._
 import com.grafex.core.listeners.{ SocketListener, WebListener }
 import com.grafex.core.{ ArgsParsingError, VersionRequest, _ }
 import com.grafex.modes.account.AccountMode
-import com.grafex.modes.account.AccountMode._
 import com.grafex.modes.datasource.DataSourceMode
 import com.grafex.modes.describe.DescribeMode
-import com.grafex.modes.describe.DescribeMode._
 import com.grafex.modes.graph.GraphMode
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
@@ -62,21 +60,28 @@ object Main extends IOApp {
       case x: GrafexConfiguration.Foo => new Neo4jMetaDataSource(x)
     }
 
-    val modes: List[Mode[IO]] = List(
-      Mode.instance(DataSourceMode.definition.toLatest)(new DataSourceMode(metaDataSource)),
-      Mode.instance(GraphMode.definition.toLatest)(new GraphMode(metaDataSource)),
-      Mode.instance(AccountMode.definition.toLatest)(new AccountMode(null))
-    )
-
-    val describeMode: Mode[IO] = Mode.instance(DescribeMode.definition.toLatest)(
-      new DescribeMode(
-        modes
-          .map(_.definition)
-          .map(_.asInstanceOf[Mode.Definition.Basic])
+    EitherT.fromEither[IO](for {
+      dataSourceMode <- Mode.instance(DataSourceMode.definition.toLatest, DataSourceMode(metaDataSource))
+      graphMode      <- Mode.instance(GraphMode.definition.toLatest, GraphMode(metaDataSource))
+      accountMode    <- Mode.instance(AccountMode.definition.toLatest, AccountMode(graphMode))
+      modes <- Right(
+        List(
+          dataSourceMode,
+          graphMode,
+          accountMode
+        )
       )
-    )
+      describeMode <- Mode.instance(
+        DescribeMode.definition.toLatest,
+        DescribeMode(
+          modes
+            .map(_.definition)
+            .map(_.asInstanceOf[Mode.Definition.Basic])
+        )
+      )
 
-    EitherT.rightT(modes.foldLeft(describeMode)(_ orElse _))
+      mainMode <- Right(modes.foldLeft(describeMode)(_ orElse _))
+    } yield mainMode)
   }
 
   def buildCliRequest(

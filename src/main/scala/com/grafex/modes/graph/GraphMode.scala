@@ -2,6 +2,7 @@ package com.grafex.modes.graph
 
 import cats.data.EitherT
 import cats.effect.IO
+import com.grafex.core.Mode.ModeInitializationError
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.conversion.{
@@ -13,7 +14,8 @@ import com.grafex.core.conversion.{
 import com.grafex.core.syntax._
 import io.circe.generic.auto._
 
-class GraphMode(metaDataSource: MetaDataSource[IO]) extends Mode.MFunction[IO, GraphMode.Request, GraphMode.Response] {
+class GraphMode private (metaDataSource: MetaDataSource[IO])(implicit runContext: RunContext[IO])
+    extends Mode.MFunction[IO, GraphMode.Request, GraphMode.Response] {
   import GraphMode.actions
 
   override def apply(request: GraphMode.Request): EitherT[IO, ModeError, GraphMode.Response] = {
@@ -34,6 +36,12 @@ object GraphMode {
     Set(OutputType.Json),
     Set(actions.GetNode.definition)
   )
+
+  def apply(
+    metaDataSource: MetaDataSource[IO]
+  )(implicit rc: RunContext[IO]): Either[ModeInitializationError, GraphMode] = {
+    Right(new GraphMode(metaDataSource))
+  }
 
   sealed trait Request
   sealed trait Response

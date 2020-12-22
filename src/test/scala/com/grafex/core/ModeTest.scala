@@ -159,6 +159,7 @@ object ModeTest {
         Set(
           Action.Definition(Action.Key(Action.Name(actionName)), None, Set(Param("a")))
         )
-      )
-    )((req: Req) => EitherT.rightT(Res(s"$modeName-${req.a.toString}")))
+      ),
+      (req: Req) => EitherT.rightT[IO, ModeError](Res(s"$modeName-${req.a.toString}"))
+    )
 }
