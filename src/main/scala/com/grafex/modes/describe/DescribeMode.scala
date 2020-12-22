@@ -1,7 +1,7 @@
 package com.grafex.modes.describe
 
 import cats.data.EitherT
-import cats.effect.IO
+import cats.effect.Sync
 import com.grafex.core.Mode.{ MFunction, ModeInitializationError, Param }
 import com.grafex.core._
 import com.grafex.core.conversion._
@@ -9,11 +9,10 @@ import com.grafex.core.conversion.semiauto._
 import com.grafex.core.syntax.ActionRequestOps
 import io.circe.generic.auto._
 
-class DescribeMode private (
+class DescribeMode[F[_] : Sync : RunContext] private (
   otherDefinitions: => Seq[Mode.Definition.Callable],
   amILatest: Boolean = true
-)(implicit runContext: RunContext[IO])
-    extends MFunction[IO, DescribeMode.Request, DescribeMode.Response] {
+) extends MFunction[F, DescribeMode.Request, DescribeMode.Response] {
   import DescribeMode.actions
 
   private[this] lazy val fullMetadata: DescribeMode.Metadata =
@@ -21,7 +20,7 @@ class DescribeMode private (
       .map(DescribeMode.Metadata(_))
       .reduce(_ ++ _)
 
-  override def apply(request: DescribeMode.Request): EitherT[IO, ModeError, DescribeMode.Response] = {
+  override def apply(request: DescribeMode.Request): EitherT[F, ModeError, DescribeMode.Response] = {
     implicit val fm: DescribeMode.Metadata = fullMetadata
     request match {
       case req: actions.ListModeKeys.Request      => EitherT.fromEither(actions.ListModeKeys(req))
@@ -42,10 +41,10 @@ object DescribeMode {
     )
   )
 
-  def apply(
+  def apply[F[_] : Sync : RunContext](
     otherDefinitions: => Seq[Mode.Definition.Callable],
     amILatest: Boolean = true
-  )(implicit rc: RunContext[IO]): Either[ModeInitializationError, DescribeMode] = {
+  ): Either[ModeInitializationError, DescribeMode[F]] = {
     Right(new DescribeMode(otherDefinitions, amILatest))
   }
 

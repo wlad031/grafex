@@ -1,7 +1,7 @@
 package com.grafex.modes.graph
 
 import cats.data.EitherT
-import cats.effect.IO
+import cats.effect.Sync
 import com.grafex.core.Mode.ModeInitializationError
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
@@ -14,12 +14,12 @@ import com.grafex.core.conversion.{
 import com.grafex.core.syntax._
 import io.circe.generic.auto._
 
-class GraphMode private (metaDataSource: MetaDataSource[IO])(implicit runContext: RunContext[IO])
-    extends Mode.MFunction[IO, GraphMode.Request, GraphMode.Response] {
+class GraphMode[F[_] : Sync : RunContext] private (metaDataSource: MetaDataSource[F])
+    extends Mode.MFunction[F, GraphMode.Request, GraphMode.Response] {
   import GraphMode.actions
 
-  override def apply(request: GraphMode.Request): EitherT[IO, ModeError, GraphMode.Response] = {
-    implicit val mds: MetaDataSource[IO] = metaDataSource
+  override def apply(request: GraphMode.Request): EitherT[F, ModeError, GraphMode.Response] = {
+    implicit val mds: MetaDataSource[F] = metaDataSource
     (request match {
       case req: actions.CreateNode.Request => actions.CreateNode(req)
       case req: actions.GetNode.Request    => actions.GetNode(req)
@@ -37,9 +37,9 @@ object GraphMode {
     Set(actions.GetNode.definition)
   )
 
-  def apply(
-    metaDataSource: MetaDataSource[IO]
-  )(implicit rc: RunContext[IO]): Either[ModeInitializationError, GraphMode] = {
+  def apply[F[_] : Sync : RunContext](
+    metaDataSource: MetaDataSource[F]
+  ): Either[ModeInitializationError, GraphMode[F]] = {
     Right(new GraphMode(metaDataSource))
   }
 
@@ -56,7 +56,9 @@ object GraphMode {
         Set()
       )
 
-      def apply(request: Request)(implicit metaDataSource: MetaDataSource[IO]): EitherT[IO, ModeError, Response] = {
+      def apply[F[_] : Sync](
+        request: Request
+      )(implicit metaDataSource: MetaDataSource[F]): EitherT[F, ModeError, Response] = {
         ???
       }
 
@@ -78,7 +80,7 @@ object GraphMode {
         Set()
       )
 
-      def apply(request: Request): EitherT[IO, ModeError, Response] = {
+      def apply[F[_] : Sync](request: Request): EitherT[F, ModeError, Response] = {
         ???
       }
 
