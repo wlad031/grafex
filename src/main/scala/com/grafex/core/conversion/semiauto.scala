@@ -1,8 +1,10 @@
-package com.grafex.core.conversion
+package com.grafex.core
+package conversion
 
 import cats.instances.either._
 import cats.syntax.bifunctor._
-import com.grafex.core.{ InputType, Mode, OutputType, RequestFormatError }
+import com.grafex.core.mode.ModeError.RequestFormatError
+import com.grafex.core.mode.{ ModeRequest, ModeResponse }
 import io.circe.syntax.EncoderOps
 import shapeless.Lazy
 
@@ -14,12 +16,14 @@ object semiauto {
 
   final def deriveOnlyJsonActionResponseEncoder[RES : io.circe.Encoder]: ActionResponseEncoder[RES] =
     ActionResponseEncoder.instance[RES]({
-      case OutputType.Json => response => Right(Mode.Response(response.asJson.spaces2))
+      case OutputType.Json => response => Right(ModeResponse.Json(response.asJson))
     })
 
-  final def deriveOnlyJsonActionRequestDecoder[REQ : io.circe.Decoder]: ActionRequestDecoder[REQ] =
+  final def deriveOnlyJsonActionRequestDecoder[REQ](
+    implicit jsonDecoder: io.circe.Decoder[REQ]
+  ): ActionRequestDecoder[REQ] =
     ActionRequestDecoder.instance[REQ]({
-      case InputType.Json =>
-        (req: Mode.SingleCallRequest) => io.circe.parser.decode[REQ](req.body).leftMap(e => RequestFormatError(req, e))
+      case req @ ModeRequest.Json(_, _, body) =>
+        jsonDecoder.decodeJson(body).leftMap(e => RequestFormatError(req, e))
     })
 }

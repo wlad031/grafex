@@ -1,5 +1,5 @@
-package com.grafex
-package core.internal
+package com.grafex.core
+package internal
 
 import org.neo4j.driver.{ Logger, Logging }
 import org.slf4j.LoggerFactory

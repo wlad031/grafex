@@ -1,15 +1,17 @@
-package com.grafex.core.conversion
+package com.grafex.core
+package conversion
 
-import com.grafex.core.{ InputType, Mode, ModeError, UnsupportedInputType }
+import com.grafex.core.mode.ModeError.InvalidRequest
+import com.grafex.core.mode.{ ModeError, ModeRequest }
 
 trait ActionRequestDecoder[REQ] {
-  def decode(inputType: InputType, request: Mode.SingleCallRequest): Either[ModeError, REQ]
+  def decode(request: ModeRequest): Either[ModeError, REQ]
 }
 
 object ActionRequestDecoder {
   def instance[A](
-    pf: PartialFunction[InputType, Mode.SingleCallRequest => Either[ModeError, A]]
-  ): ActionRequestDecoder[A] = { (in: InputType, req: Mode.SingleCallRequest) =>
-    pf.applyOrElse(in, (in1: InputType) => (_: Mode.SingleCallRequest) => Left(UnsupportedInputType(in1)))(req)
+    pf: PartialFunction[ModeRequest, Either[ModeError, A]]
+  ): ActionRequestDecoder[A] = { (req: ModeRequest) =>
+    pf.applyOrElse(req, (_: ModeRequest) => Left(InvalidRequest.UnsupportedInputType(req)))
   }
 }

@@ -1,16 +1,14 @@
-package com.grafex.core.conversion
+package com.grafex.core
+package conversion
 
-import com.grafex.core.{ Mode, ModeError, UnknownAction }
+import com.grafex.core.mode.ModeError.UnknownAction
+import com.grafex.core.mode.{ ModeError, ModeRequest }
 
 trait ModeRequestDecoder[REQ] {
-  def apply(req: Mode.SingleCallRequest): Either[ModeError, REQ]
+  def apply(req: ModeRequest): Either[ModeError, REQ]
 }
 
 object ModeRequestDecoder {
-  //noinspection ConvertExpressionToSAM
-  def instance[REQ](pf: PartialFunction[Mode.SingleCallRequest, Either[ModeError, REQ]]): ModeRequestDecoder[REQ] =
-    new ModeRequestDecoder[REQ] {
-      def apply(req: Mode.SingleCallRequest): Either[ModeError, REQ] =
-        pf.applyOrElse(req, (req: Mode.SingleCallRequest) => Left(UnknownAction(req.call.actionKey)))
-    }
+  def instance[REQ](pf: PartialFunction[ModeRequest, Either[ModeError, REQ]]): ModeRequestDecoder[REQ] =
+    (req: ModeRequest) => pf.applyOrElse(req, (req: ModeRequest) => Left(UnknownAction(req.calls.head.actionKey)))
 }

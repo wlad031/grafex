@@ -1,6 +1,7 @@
-package com.grafex.core.conversion
+package com.grafex.core
+package conversion
 
-import com.grafex.core.{ Mode, ModeError }
+import com.grafex.core.mode.{ ModeError, ModeRequest, ModeResponse }
 import shapeless.{ :+:, CNil, Coproduct, Inl, Inr }
 
 trait ReprModeResponseEncoder[RES] extends ModeResponseEncoder[RES]
@@ -8,21 +9,21 @@ trait ReprModeResponseEncoder[RES] extends ModeResponseEncoder[RES]
 object ReprModeResponseEncoder {
 
   implicit val cnilEnc: ReprModeResponseEncoder[CNil] =
-    ReprModeResponseEncoder.instance { (_: CNil, _: Mode.Request) => sys.error("Unreachable code") }
+    ReprModeResponseEncoder.instance { (_: CNil, _: ModeRequest) => sys.error("Unreachable code") }
 
   implicit def coprodEnc[H, T <: Coproduct](
     implicit
     actionResponseEncoder: ActionResponseEncoder[H],
     tModeResponseEncoder: ReprModeResponseEncoder[T]
-  ): ReprModeResponseEncoder[H :+: T] = ReprModeResponseEncoder.instance { (res: H :+: T, req: Mode.Request) =>
+  ): ReprModeResponseEncoder[H :+: T] = ReprModeResponseEncoder.instance { (res: H :+: T, req: ModeRequest) =>
     res match {
       case Inl(h) => actionResponseEncoder.encode(req.outputType, h)
       case Inr(t) => tModeResponseEncoder.apply(t)(req)
     }
   }
 
-  private def instance[RES](f: (RES, Mode.Request) => Either[ModeError, Mode.Response]): ReprModeResponseEncoder[RES] =
+  private def instance[RES](f: (RES, ModeRequest) => Either[ModeError, ModeResponse]): ReprModeResponseEncoder[RES] =
     new ReprModeResponseEncoder[RES] {
-      override def apply(res: RES)(req: Mode.Request): Either[ModeError, Mode.Response] = f(res, req)
+      override def apply(res: RES)(req: ModeRequest): Either[ModeError, ModeResponse] = f(res, req)
     }
 }

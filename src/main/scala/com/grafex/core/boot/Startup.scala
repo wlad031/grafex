@@ -1,9 +1,10 @@
-package com.grafex.core.boot
-
-import java.nio.file.Path
+package com.grafex.core
+package boot
 
 import cats.data.NonEmptyList
-import com.grafex.core._
+import com.grafex.core.mode.Mode
+
+import java.nio.file.Path
 
 /** ADT which describes the "startup mode" of the application.
   *

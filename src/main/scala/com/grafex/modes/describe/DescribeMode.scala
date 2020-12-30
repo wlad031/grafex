@@ -2,10 +2,11 @@ package com.grafex.modes.describe
 
 import cats.data.EitherT
 import cats.effect.Sync
-import com.grafex.core.Mode.{ MFunction, ModeInitializationError, Param }
 import com.grafex.core._
 import com.grafex.core.conversion._
 import com.grafex.core.conversion.semiauto._
+import com.grafex.core.mode.Mode.{ MFunction, ModeInitializationError, Param }
+import com.grafex.core.mode.{ Mode, ModeError }
 import com.grafex.core.syntax.ActionRequestOps
 import io.circe.generic.auto._
 
@@ -173,10 +174,10 @@ object DescribeMode {
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
   implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
-    case req if actions.ListModeKeys.definition.suitsFor(req.call.actionKey) =>
-      req.asActionRequest[actions.ListModeKeys.Request](req.inputType)
-    case req if actions.GetModeDefinition.definition.suitsFor(req.call.actionKey) =>
-      req.asActionRequest[actions.GetModeDefinition.Request](req.inputType)
+    case req if actions.ListModeKeys.definition.suitsFor(req.calls.head.actionKey) =>
+      req.asActionRequest[actions.ListModeKeys.Request]
+    case req if actions.GetModeDefinition.definition.suitsFor(req.calls.head.actionKey) =>
+      req.asActionRequest[actions.GetModeDefinition.Request]
   }
 
   /** Encapsulates the map containing mode definitions in convenient for searching way. */

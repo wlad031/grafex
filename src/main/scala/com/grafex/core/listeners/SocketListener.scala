@@ -2,8 +2,9 @@ package com.grafex.core.listeners
 
 import cats.data.EitherT
 import cats.effect.{ ExitCode, IO }
+import com.grafex.core.GrafexError
 import com.grafex.core.boot.Startup
-import com.grafex.core.{ GrafexError, Mode }
+import com.grafex.core.mode.Mode
 
 object SocketListener {
 
