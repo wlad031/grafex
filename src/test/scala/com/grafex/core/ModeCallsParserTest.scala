@@ -1,5 +1,4 @@
-package com.grafex
-package core
+package com.grafex.core
 
 import cats.data.NonEmptyList
 import org.scalatest.funsuite.AnyFunSuite

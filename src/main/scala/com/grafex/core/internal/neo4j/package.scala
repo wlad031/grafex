@@ -1,4 +1,5 @@
-package com.grafex.core.internal
+package com.grafex
+package core.internal
 
 import org.neo4j.driver.{ Logger, Logging }
 import org.slf4j.LoggerFactory
@@ -30,8 +31,10 @@ package object neo4j {
     * }}}
     *
     * @note If SL4J is not is the classpath, it returns provided (or default [[Logging.console]]) failover logging.
+    *
+    * @todo make it more private
     */
-  private[core] object logging {
+  object logging {
 
     /** Instantiates a new [[Slf4jLogger]] logger or returns the failover one. */
     def apply(failover: => Logging = Logging.console(java.util.logging.Level.ALL)): Logging =

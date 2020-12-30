@@ -14,9 +14,12 @@ package object core {
       exitCode
     }
 
-  trait GrafexError { self =>
+  trait GrafexError extends RuntimeException { self =>
+
+    override def getMessage: String = self.toString
+
     def errorIO: IO[ExitCode] = IO {
-      System.err.println(self)
+      System.err.println(getMessage)
       ExitCode.Error
     }
   }
@@ -45,11 +48,12 @@ package object core {
   }
 
   trait ModeError extends GrafexError
-  case class UnknownAction(actionKey: Mode.Action.Key) extends ModeError
-  case class UnsupportedInputType(inputType: InputType) extends ModeError
-  case class UnsupportedOutputType(outputType: OutputType) extends ModeError
-  case class IllegalModeState() extends ModeError // FIXME: bad error
-  case class RequestFormatError(request: Mode.SingleCallRequest, ex: Exception) extends ModeError
+  final case class UnknownAction(actionKey: Mode.Action.Key) extends ModeError
+  final case class UnsupportedInputType(inputType: InputType) extends ModeError
+  final case class UnsupportedOutputType(outputType: OutputType) extends ModeError
+  final case class IllegalModeState() extends ModeError // FIXME: bad error
+  final case class RequestFormatError(request: Mode.SingleCallRequest, ex: Exception) extends ModeError
+  final case class ResponseFormatError(response: Mode.Response, ex: Exception) extends ModeError
 
   trait RunContext[F[_]] {
     val clock: Clock[F]

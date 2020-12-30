@@ -9,8 +9,5 @@ sealed trait DataSourceMetadata {
 object DataSourceMetadata {
   final case class Id(s: String)
 
-  final case class Mongo(override val id: Id) extends DataSourceMetadata
-  final case class Mysql(override val id: Id) extends DataSourceMetadata
-  final case class FileSystem(override val id: Id) extends DataSourceMetadata
   final case class Virtual(override val id: Id) extends DataSourceMetadata
 }

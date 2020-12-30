@@ -1,5 +1,4 @@
-package com.grafex
-package core
+package com.grafex.core
 package boot
 
 import cats.effect.{ IO, Resource }

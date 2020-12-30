@@ -1,5 +1,4 @@
-package com.grafex
-package core
+package com.grafex.core
 package boot
 
 import cats.data.EitherT
@@ -72,18 +71,18 @@ object Config {
   /** Contains all the application configurations. */
   case class GrafexConfiguration(
     accountId: String,
-    metaDataSource: GrafexConfiguration.MetaDataSourceConfig,
+    graphDataSource: GrafexConfiguration.GraphDataSourceConfig,
     modes: List[Json]
   )
 
   /** Contains inner structures of the [[GrafexConfiguration]] */
   object GrafexConfiguration {
 
-    sealed trait MetaDataSourceConfig
+    sealed trait GraphDataSourceConfig
 
     case class Foo(
       url: String
-    ) extends MetaDataSourceConfig
+    ) extends GraphDataSourceConfig
   }
 
   /** Represents an error of config reading. */

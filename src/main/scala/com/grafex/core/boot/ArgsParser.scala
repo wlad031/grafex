@@ -1,10 +1,10 @@
-package com.grafex
-package core
+package com.grafex.core
 package boot
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{ Invalid, Valid }
 import cats.syntax.all._
+import com.grafex.build.BuildInfo
 import com.grafex.core.boot.Startup.{ Listener, Verbosity }
 import com.monovore.decline.{ Command, Opts }
 
@@ -48,7 +48,7 @@ object ArgsParser {
 
     val versionOpt = Opts
       .flag(long = "version", help = "Print the version number and exit")
-      .map(_ => build.BuildInfo.version)
+      .map(_ => BuildInfo.version)
       .map(Startup.Version)
 
     // Using explicitly created "help" allows to
@@ -179,7 +179,7 @@ object ArgsParser {
       )
     })
 
-    Command(build.BuildInfo.name, "Grafex", helpFlag = false)(
+    Command(BuildInfo.name, "Grafex", helpFlag = false)(
       List(
         versionOpt,
         helpOpt,

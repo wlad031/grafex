@@ -1,11 +1,14 @@
 package com.grafex
 
 import cats.data.{ EitherT, NonEmptyList }
-import cats.effect.{ Clock, ExitCode, IO, IOApp }
+import cats.effect.{ Clock, ExitCode, IO, IOApp, Resource }
 import com.grafex.core.boot.Config.GrafexConfiguration
 import com.grafex.core.boot.Startup.Listener
 import com.grafex.core.boot.{ ArgsParser, Config, Startup }
+import com.grafex.core.graph.GraphDataSource
+import com.grafex.core.graph.neo4j.Neo4JGraphDataSource
 import com.grafex.core.implicits._
+import com.grafex.core.internal.neo4j.{ logging => Neo4JLogging }
 import com.grafex.core.listeners.{ SocketListener, WebListener }
 import com.grafex.core.{ ArgsParsingError, VersionRequest, _ }
 import com.grafex.modes.account.AccountMode
@@ -14,6 +17,9 @@ import com.grafex.modes.describe.DescribeMode
 import com.grafex.modes.graph.GraphMode
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import neotypes.GraphDatabase
+import neotypes.cats.effect.implicits._
+import org.neo4j.driver.{ AuthTokens, Config => Neo4JConfig }
 
 object Main extends IOApp {
 
@@ -27,8 +33,10 @@ object Main extends IOApp {
       startupCtx <- EitherT.fromEither[IO](ArgsParser.parse(args))
       config     <- Config.load(startupCtx)()
       runCtx     <- buildRunContext(startupCtx)
-      mode       <- buildModeContainer(startupCtx, runCtx, config)
-      exitCode   <- launch(startupCtx, runCtx, mode)
+      exitCode <- EitherT[IO, GrafexError, ExitCode](buildModeContainer(startupCtx, runCtx, config).use {
+        case Left(error) => IO.pure(Left(error))
+        case Right(mode) => launch(startupCtx, runCtx, mode).value
+      })
     } yield exitCode).value.flatMap({
       case Left(argsHelp: ArgsParsingError) => argsHelp.errorIO
       case Left(help: HelpRequest)          => help.successIO
@@ -53,35 +61,50 @@ object Main extends IOApp {
     startupCtx: Startup.Context,
     runCtx: RunContext[IO],
     config: GrafexConfiguration
-  ): EitherT[IO, GrafexError, Mode[IO]] = {
+  ): Resource[IO, Either[GrafexError, Mode[IO]]] = {
     implicit val rCtx: RunContext[IO] = runCtx
 
-    val metaDataSource = config.metaDataSource match {
+    val metaDataSource = config.graphDataSource match {
       case x: GrafexConfiguration.Foo => new Neo4jMetaDataSource(x)
     }
 
-    EitherT.fromEither[IO](for {
-      dataSourceMode <- Mode.instance(DataSourceMode.definition.toLatest, DataSourceMode(metaDataSource))
-      graphMode      <- Mode.instance(GraphMode.definition.toLatest, GraphMode(metaDataSource))
-      accountMode    <- Mode.instance(AccountMode.definition.toLatest, AccountMode(graphMode))
-      modes <- Right(
-        List(
-          dataSourceMode,
-          graphMode,
-          accountMode
-        )
-      )
-      describeMode <- Mode.instance(
-        DescribeMode.definition.toLatest,
-        DescribeMode[IO](
-          modes
-            .map(_.definition)
-            .map(_.asInstanceOf[Mode.Definition.Basic])
-        )
-      )
+    buildGraphDataSource(config).evalMap { graphDataSource =>
+      IO {
+        for {
+          dataSourceMode <- Mode.instance(DataSourceMode.definition.toLatest, DataSourceMode(metaDataSource))
+          graphMode      <- Mode.instance(GraphMode.definition.toLatest, GraphMode(graphDataSource))
+          accountMode    <- Mode.instance(AccountMode.definition.toLatest, AccountMode(graphMode))
+          modes <- Right(
+            List(
+              dataSourceMode,
+              graphMode,
+              accountMode
+            )
+          )
+          describeMode <- Mode.instance(
+            DescribeMode.definition.toLatest,
+            DescribeMode[IO](
+              modes
+                .map(_.definition)
+                .map(_.asInstanceOf[Mode.Definition.Basic]) // FIXME: unsafe operation
+            )
+          )
 
-      mainMode <- Right(modes.foldLeft(describeMode)(_ orElse _))
-    } yield mainMode)
+          mainMode <- Right(modes.foldLeft(describeMode)(_ orElse _))
+        } yield mainMode
+      }
+    }
+  }
+
+  def buildGraphDataSource(
+    config: GrafexConfiguration
+  ): Resource[IO, GraphDataSource[IO]] = {
+    config.graphDataSource match {
+      case GrafexConfiguration.Foo(url) =>
+        GraphDatabase
+          .driver[IO](url, AuthTokens.none(), Neo4JConfig.builder().withLogging(Neo4JLogging()).build())
+          .map(driver => new Neo4JGraphDataSource[IO](driver))
+    }
   }
 
   def buildCliRequest(
