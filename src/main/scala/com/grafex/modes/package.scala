@@ -1,7 +1,9 @@
 package com.grafex
 
 import cats.data.NonEmptyList
-import com.grafex.core.{ InputType, Mode, ModeCallsParser, OutputType }
+import com.grafex.core.mode.{ Mode, ModeRequest }
+import com.grafex.core.{ ModeCallsParser, OutputType }
+import io.circe.syntax.EncoderOps
 
 package object modes {
 
@@ -18,15 +20,11 @@ package object modes {
     case Right(value) => value.head
   }
 
-  /** Returns new [[Mode.Call]] with one [[Mode.Call]].
-    * By default, uses Json as [[InputType]] and Json as [[OutputType]].
-    */
-  def createSingleModeRequest(
-    call: Mode.Call,
-    body: String,
-    inputType: InputType = InputType.Json,
-    outputType: OutputType = OutputType.Json
-  ): Mode.Request = {
-    Mode.Request(NonEmptyList(call, Nil), body, inputType, outputType)
+  object ModeClient {
+
+    def jsonRequest[A : io.circe.Encoder](
+      call: Mode.Call,
+      body: A
+    ): ModeRequest = ModeRequest.Json(NonEmptyList(call, Nil), OutputType.Json, body.asJson)
   }
 }

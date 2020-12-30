@@ -2,7 +2,6 @@ package com.grafex.modes.datasource
 
 import cats.data.EitherT
 import cats.effect.IO
-import com.grafex.core.Mode.ModeInitializationError
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.conversion.{
@@ -11,12 +10,14 @@ import com.grafex.core.conversion.{
   ModeRequestDecoder,
   ModeResponseEncoder
 }
+import com.grafex.core.mode.Mode.{ MFunction, ModeInitializationError }
+import com.grafex.core.mode.{ Mode, ModeError }
 import com.grafex.core.syntax.ActionRequestOps
 import com.grafex.modes.datasource.DataSourceMode.actions
 import io.circe.generic.auto._
 
 class DataSourceMode private (metaDataSource: MetaDataSource[IO])(implicit runContext: RunContext[IO])
-    extends Mode.MFunction[IO, DataSourceMode.Request, DataSourceMode.Response] {
+    extends MFunction[IO, DataSourceMode.Request, DataSourceMode.Response] {
 
   override def apply(
     request: DataSourceMode.Request
@@ -100,7 +101,7 @@ object DataSourceMode {
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
   implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
-    case req if actions.GetDataSourceMeta.definition.suitsFor(req.call.actionKey) =>
-      req.asActionRequest[actions.GetDataSourceMeta.Request](req.inputType)
+    case req if actions.GetDataSourceMeta.definition.suitsFor(req.calls.head.actionKey) =>
+      req.asActionRequest[actions.GetDataSourceMeta.Request]
   }
 }

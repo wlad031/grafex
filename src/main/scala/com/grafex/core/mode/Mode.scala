@@ -1,18 +1,17 @@
 package com.grafex.core
+package mode
 
 import cats.data.{ EitherT, NonEmptyList }
 import cats.effect.{ ConcurrentEffect, Sync }
-import cats.instances.either._
 import cats.instances.option._
-import cats.syntax.bifunctor._
+import cats.syntax.either._
 import cats.syntax.semigroupk._
-import com.grafex.core.Mode._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
-import io.circe.parser.parse
+import com.grafex.core.mode.ModeError.InvalidRequest
 
 /** Represents any possible "mode".
   *
-  * Basically, "mode" is just an [[Mode.MFunction]] with input type [[Mode.Request]] and output type [[Mode.Response]].
+  * Basically, "mode" is just an [[Mode.MFunction]] with input type [[ModeRequest]] and output type [[ModeResponse]].
   * Also, it provides a [[Mode.Definition]] of itself.
   *
   * Such modes could be easily composed in different ways:
@@ -22,7 +21,8 @@ import io.circe.parser.parse
   *
   * @tparam F the type of the effect
   */
-sealed abstract class Mode[F[_] : Sync : RunContext] extends MFunction[F, Request, Response] {
+sealed abstract class Mode[F[_] : Sync : RunContext] extends Mode.MFunction[F, ModeRequest, ModeResponse] {
+  import Mode._
 
   /** The definition of the mode. */
   def definition: Definition
@@ -35,6 +35,8 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends MFunction[F, Reques
     * @return new composed mode
     */
   def orElse(that: Mode[F]): Mode[F] = new OrElse[F](left = this, right = that)
+
+  val rarc = resAndReqCombiner(definition)
 
   /** `andThen` composition allows to chain modes in the following way:
     * {{{
@@ -59,24 +61,14 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends MFunction[F, Reques
     other: Mode[F]
   )(
     implicit
-    resAndReqCombiner: (Mode.Response, Mode.Request) => Either[ModeError, String] = (res, req) => {
-      for {
-        json1 <- parse(res.body).leftMap(_ => IllegalModeState())
-        json2 <- parse(req.body).leftMap(_ => IllegalModeState())
-      } yield json1.deepMerge(json2).noSpaces
-    },
-    resCombiner: (Mode.Response, Mode.Response) => Either[ModeError, String] = (res, req) => {
-      for {
-        json1 <- parse(res.body).leftMap(_ => IllegalModeState())
-        json2 <- parse(req.body).leftMap(_ => IllegalModeState())
-      } yield json1.deepMerge(json2).spaces2
-    }
-  ): Either[ModesNotCombinable, Mode[F]] = {
+    resAndReqCombiner: ModeResponseWithRequestCombiner = rarc,
+    resCombiner: ModeResponseWithResponseCombiner = resCombiner
+  ): Either[InvalidRequest.ModesNotCombinable, Mode[F]] = {
     if (!this.definition.doesSupport(OutputType.Json) && other.definition.doesSupport(InputType.Json) ||
         !this.definition.doesSupport(OutputType.Json) && other.definition.doesSupport(OutputType.Json)) {
-      Left(ModesNotCombinable(this.definition, other.definition))
+      InvalidRequest.ModesNotCombinable(this.definition, other.definition).asLeft
     } else {
-      Right(new AndThen[F](first = this, next = other))
+      new AndThen[F](first = this, next = other).asRight
     }
   }
 
@@ -168,58 +160,6 @@ object Mode {
 
   def dyn[F[_] : Sync : RunContext, A, B](f: MFunction[F, A, B]): DynamicMFunction[F, A, B] = { ??? }
 
-  /** Mode's "request" data type.
-    *
-    * @param calls the non empty list of mode calls
-    * @param body the body of the request
-    * @param inputType the type of the input data
-    * @param outputType requested type of output data
-    */
-  case class Request(
-    calls: NonEmptyList[Call],
-    body: String,
-    inputType: InputType,
-    outputType: OutputType
-  ) {
-
-    def dropTail(newOutputType: OutputType = outputType): Request =
-      copy(calls = NonEmptyList(calls.head, Nil), outputType = newOutputType)
-
-    def dropFirst(newBody: String = this.body): Option[Request] =
-      calls match {
-        case NonEmptyList(_, Nil)     => None
-        case NonEmptyList(_, x :: xs) => Some(copy(calls = NonEmptyList(x, xs), body = newBody))
-      }
-
-    def asSingle: SingleCallRequest = SingleCallRequest(
-      calls.head,
-      body,
-      inputType,
-      outputType
-    )
-  }
-
-  // TODO: find out how to make it better
-  case class SingleCallRequest(
-    call: Call,
-    body: String,
-    inputType: InputType,
-    outputType: OutputType
-  )
-
-  /** Factory for various [[Request]] objects. */
-  object Request {
-
-    def web(call: Call, body: String): Request =
-      Request(NonEmptyList(call, Nil), body, InputType.Json, OutputType.Json)
-  }
-
-  /** Mode's "response" data type.
-    *
-    * @param body the body of the response
-    */
-  case class Response(body: String)
-
   /** Represents how mode and some of it's actions can be found and called. */
   sealed trait Call {
 
@@ -270,27 +210,28 @@ object Mode {
     modeResponseEncoder: ModeResponseEncoder[B]
   ) extends Mode[F] {
 
-    private[this] def validateRequest(request: Request): Option[ModeError] =
+    private[this] def validateRequest(request: ModeRequest): Option[ModeError] =
       checkRequestTypeSupport(definition, request) <+>
       Option.when(
         request.calls
           .map(definition.suitsFor)
           .filterNot(x => x)
           .nonEmpty
-      )(InvalidRequest.InappropriateCall.ByModeNameOrVersion(definition, request): ModeError)
+      )(InvalidRequest.WrongMode(definition, request): ModeError)
 
-    override def apply(request: Request): EitherT[F, ModeError, Response] =
+    override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] =
       validateRequest(request) match {
-        case Some(error) => EitherT.leftT[F, Response](error)
+        case Some(error) => error.asLeft.toEitherT[F]
         case None =>
-          if (request.calls.size > 1) EitherT.fromEither[F](this andThen this).flatMap(_.apply(request))
+          if (request.calls.size > 1)
+            (this andThen this)
+              .toEitherT[F]
+              .flatMap(_.apply(request))
           else
             for {
-              modeRequest  <- EitherT.fromEither[F](modeRequestDecoder.apply(request.asSingle))
-              modeResponse <- f(modeRequest)
-              abstractResponse <- EitherT.fromEither[F](
-                modeResponseEncoder.apply(modeResponse)(request)
-              )
+              modeRequest      <- modeRequestDecoder.apply(request).toEitherT[F]
+              modeResponse     <- f(modeRequest)
+              abstractResponse <- modeResponseEncoder.apply(modeResponse)(request).toEitherT[F]
             } yield abstractResponse
       }
   }
@@ -300,29 +241,50 @@ object Mode {
     override val definition: Definition.OrElse =
       Definition.OrElse(left.definition, right.definition)
 
-    private[this] def validateRequestAndGetMode(request: Request): Either[ModeError, Mode[F]] =
+    private[this] def validateRequestAndGetMode(request: ModeRequest): Either[ModeError, Mode[F]] =
       checkRequestTypeSupport(this.definition, request) match {
         case Some(error: ModeError) => Left(error)
         case None =>
           if (request.calls.size == 1) {
             if (definition.left.suitsFor(request.calls.head)) Right(left)
             else if (definition.right.suitsFor(request.calls.head)) Right(right)
-            else Left(InvalidRequest.InappropriateCall.ByModeNameOrVersion(definition, request))
+            else Left(InvalidRequest.WrongMode(definition, request))
           } else if (request.calls
                        .map(definition.suitsFor)
                        .filterNot(x => x) // TODO: one of my best lines
                        .isEmpty) {
             this andThen this
           } else {
-            Left(InvalidRequest.InappropriateCall.ByModeNameOrVersion(definition, request))
+            Left(InvalidRequest.WrongMode(definition, request))
           }
       }
 
-    override def apply(request: Request): EitherT[F, ModeError, Response] =
+    override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] =
       validateRequestAndGetMode(request) match {
-        case Left(error) => EitherT.leftT[F, Response](error)
+        case Left(error) => error.asLeft.toEitherT[F]
         case Right(mode) => mode(request)
       }
+  }
+
+  type ModeResponseWithRequestCombiner = (ModeResponse, ModeRequest) => Either[ModeError, ModeRequest]
+  type ModeResponseWithResponseCombiner = (ModeResponse, ModeResponse) => Either[ModeError, ModeResponse]
+
+  private def resAndReqCombiner(definition: Mode.Definition): ModeResponseWithRequestCombiner = (res, req) => {
+    req.calls match {
+      case NonEmptyList(_, Nil) => InvalidRequest.NotEnoughCalls(definition, req).asLeft
+      case NonEmptyList(_, x :: xs) =>
+        (res, req) match {
+          case (ModeResponse.Json(resBody), ModeRequest.Json(_, _, reqBody)) =>
+            ModeRequest.Json(NonEmptyList(x, xs), OutputType.Json, resBody deepMerge reqBody).asRight
+        }
+    }
+  }
+
+  private def resCombiner: ModeResponseWithResponseCombiner = (res, req) => {
+    (res, req) match {
+      case (ModeResponse.Json(res1Body), ModeResponse.Json(res2Body)) =>
+        ModeResponse.Json(res1Body deepMerge res2Body).asRight
+    }
   }
 
   private class AndThen[F[_] : Sync : RunContext](
@@ -330,35 +292,35 @@ object Mode {
     next: Mode[F]
   )(
     implicit
-    resAndReqCombiner: (Mode.Response, Mode.Request) => Either[ModeError, String],
-    resCombiner: (Mode.Response, Mode.Response) => Either[ModeError, String]
+    resAndReqCombiner: ModeResponseWithRequestCombiner,
+    resCombiner: ModeResponseWithResponseCombiner
   ) extends Mode[F] {
 
     override def definition: Definition = Definition.AndThen(first.definition, next.definition)
 
     private[this] def validateAndPrepareRequest(
-      request: Request
-    ): Either[ModeError, ((Mode[F], Request), (Mode[F], Request))] = {
+      request: ModeRequest
+    ): Either[ModeError, ((Mode[F], ModeRequest), (Mode[F], ModeRequest))] = {
       def ifFirstNotAndThen(
         f: Mode[F],
         n: Mode[F]
-      ): Either[ModeError, ((Mode[F], Request), (Mode[F], Request))] = {
+      ): Either[ModeError, ((Mode[F], ModeRequest), (Mode[F], ModeRequest))] = {
         // FIXME: unsafe operation .get
         val firstRequest = request.dropTail(OutputType.Json)
-        val firstCall = firstRequest.calls.head
+        val firstCall = firstRequest.firstCall
         val maybeNextRequest = request.dropFirst()
         val maybeNextCall = maybeNextRequest.map(_.calls.head)
         val error =
           checkRequestTypeSupport(f.definition, firstRequest) <+>
           Option.when(!f.definition.suitsFor(firstCall))(
-            InvalidRequest.InappropriateCall.ByModeNameOrVersion(definition, request): ModeError
+            InvalidRequest.WrongMode(definition, request): ModeError
           ) <+>
           (maybeNextCall match {
             case Some(call) =>
               Option.when(!n.definition.suitsFor(call))(
-                InvalidRequest.InappropriateCall.ByModeNameOrVersion(definition, request): ModeError
+                InvalidRequest.WrongMode(definition, request): ModeError
               )
-            case None => Some(InvalidRequest.InappropriateCall.ByNumberOfCalls(definition, request))
+            case None => Some(InvalidRequest.NotEnoughCalls(definition, request))
           })
         error match {
           case Some(error) => Left(error)
@@ -379,16 +341,16 @@ object Mode {
       }
     }
 
-    override def apply(request: Request): EitherT[F, ModeError, Response] =
+    override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] =
       validateAndPrepareRequest(request) match {
-        case Left(error) => EitherT.leftT[F, Response](error)
+        case Left(error) => error.asLeft.toEitherT[F]
         case Right(((m1, r1), (m2, r2))) =>
           for {
             firstRes  <- m1(r1)
-            newReq    <- EitherT.fromEither[F](resAndReqCombiner(firstRes, request))
-            secondRes <- m2(r2.copy(body = newReq))
-            finalBody <- EitherT.fromEither[F](resCombiner(firstRes, secondRes))
-          } yield secondRes.copy(body = finalBody)
+            newReq    <- resAndReqCombiner(firstRes, request).toEitherT[F]
+            secondRes <- m2(newReq)
+            finalRes  <- resCombiner(firstRes, secondRes).toEitherT[F]
+          } yield finalRes
       }
   }
 
@@ -398,7 +360,7 @@ object Mode {
 
     class Web[F[_] : Sync : RunContext, A, B](config: Web.Config) extends Dynamic[F] {
       override def definition: Definition = ???
-      override def apply(request: Mode.Request): EitherT[F, ModeError, Mode.Response] = ???
+      override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] = ???
     }
 
     object Web {
@@ -412,36 +374,34 @@ object Mode {
       extends Mode[F] {
     override val definition: Definition = definitionCreator(mode.definition)
 
-    override def apply(request: Request): EitherT[F, ModeError, Response] = ???
+    override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] = ???
   }
 
   private def checkRequestTypeSupport(
     definition: Definition,
-    request: Mode.Request
+    request: ModeRequest
   ): Option[ModeError] =
     Option.when(!definition.doesSupport(request.inputType))(
-      InvalidRequest.UnsupportedInputType(definition, request): ModeError
+      InvalidRequest.UnsupportedInputType(request): ModeError
     ) <+>
     Option.when(!definition.doesSupport(request.outputType))(
-      InvalidRequest.UnsupportedOutputType(definition, request): ModeError
+      InvalidRequest.UnsupportedOutputType(request.outputType): ModeError
     )
 
   // endregion
 
   // region Errors
 
-  sealed trait InvalidRequest extends ModeError
-  object InvalidRequest {
-    case class UnsupportedInputType(modeDef: Definition, request: Request) extends InvalidRequest
-    case class UnsupportedOutputType(modeDef: Definition, request: Request) extends InvalidRequest
-    sealed trait InappropriateCall extends InvalidRequest
-    object InappropriateCall {
-      case class ByModeNameOrVersion(modeDef: Definition, request: Request) extends InappropriateCall
-      case class ByNumberOfCalls(modeDef: Definition, request: Request) extends InappropriateCall
-    }
-  }
-
-  case class ModesNotCombinable(first: Definition, second: Definition) extends ModeError
+//  sealed trait InvalidRequest extends ModeError
+//  object InvalidRequest {
+//    case class UnsupportedInputType(modeDef: Definition, request: ModeRequest) extends InvalidRequest
+//    case class UnsupportedOutputType(modeDef: Definition, request: ModeRequest) extends InvalidRequest
+//    sealed trait InappropriateCall extends InvalidRequest
+//    object InappropriateCall {
+//      case class ByModeNameOrVersion(modeDef: Definition, request: ModeRequest) extends InappropriateCall
+//      case class ByNumberOfCalls(modeDef: Definition, request: ModeRequest) extends InappropriateCall
+//    }
+//  }
 
   sealed trait ModeInitializationError extends GrafexError
   object ModeInitializationError {

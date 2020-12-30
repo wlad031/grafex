@@ -47,14 +47,6 @@ package object core {
     }
   }
 
-  trait ModeError extends GrafexError
-  final case class UnknownAction(actionKey: Mode.Action.Key) extends ModeError
-  final case class UnsupportedInputType(inputType: InputType) extends ModeError
-  final case class UnsupportedOutputType(outputType: OutputType) extends ModeError
-  final case class IllegalModeState() extends ModeError // FIXME: bad error
-  final case class RequestFormatError(request: Mode.SingleCallRequest, ex: Exception) extends ModeError
-  final case class ResponseFormatError(response: Mode.Response, ex: Exception) extends ModeError
-
   trait RunContext[F[_]] {
     val clock: Clock[F]
     val logger: Logger[F]

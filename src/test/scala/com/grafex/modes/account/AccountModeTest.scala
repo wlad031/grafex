@@ -7,9 +7,9 @@ import cats.instances.either._
 import cats.syntax.bifunctor._
 import com.grafex.core._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
+import com.grafex.core.mode.{ Mode, ModeError, ModeRequest, ModeResponse }
 import com.grafex.modes.describe.DescribeMode.UnknownModeError
 import io.circe.generic.auto._
-import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -36,15 +36,19 @@ class AccountModeTest extends AnyFunSuite with ModeTestSuite {
   implicit val testRunContext: RunContext[IO] = createTestRunContext[IO].unsafeRunSync()
 
   implicit val enc: ModeResponseEncoder[TestGraphResponse] = ModeResponseEncoder.instance {
-    (res: TestGraphResponse, req: Mode.Request) =>
+    (res: TestGraphResponse, req: ModeRequest) =>
       res match {
-        case r: TestCreateNodeResponse => Right(Mode.Response(r.asJson.noSpaces))
+        case r: TestCreateNodeResponse => Right(ModeResponse.Json(r.asJson))
       }
   }
 
+  val resJsonDecoder = implicitly[io.circe.Decoder[TestCreateNodeRequest]]
+
   implicit val dec: ModeRequestDecoder[TestGraphRequest] = ModeRequestDecoder.instance {
-    case req if req.call.actionKey.name.toString == "node/create" =>
-      decode[TestCreateNodeRequest](req.body).leftMap(x => UnknownModeError(x.toString): ModeError)
+    case req if req.calls.head.actionKey.name.toString == "node/create" =>
+      resJsonDecoder
+        .decodeJson(req.asInstanceOf[ModeRequest.Json].body)
+        .leftMap(x => UnknownModeError(x.toString): ModeError)
   }
 
   val graphMode = Mode.instance(

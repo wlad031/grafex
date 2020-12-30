@@ -3,10 +3,8 @@ package account
 
 import cats.data.EitherT
 import cats.effect.Sync
-import cats.instances.either._
-import cats.syntax.bifunctor._
+import cats.syntax.either._
 import cats.syntax.functor._
-import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.conversion.{
@@ -15,10 +13,11 @@ import com.grafex.core.conversion.{
   ModeRequestDecoder,
   ModeResponseEncoder
 }
+import com.grafex.core.mode.Mode.{ MFunction, ModeInitializationError }
+import com.grafex.core.mode.ModeError.ResponseFormatError
+import com.grafex.core.mode.{ Mode, ModeError, ModeResponse }
 import com.grafex.core.syntax.ActionRequestOps
 import io.circe.generic.auto._
-import io.circe.parser.decode
-import io.circe.syntax.EncoderOps
 
 class AccountMode[F[_] : Sync : RunContext] private (graphMode: Mode[F])
     extends MFunction[F, AccountMode.Request, AccountMode.Response] {
@@ -80,16 +79,22 @@ object AccountMode {
       def apply[F[_] : Sync : RunContext](
         request: Request
       )(implicit graphMode: Mode[F]): EitherT[F, ModeError, Response] = {
-        val graphRequest =
-          createSingleModeRequest(
+        val graphRequest = {
+          ModeClient.jsonRequest(
             createNodeGraphModeCall,
-            CreateNodeRequest(Node.labels.Account, Map("name" -> request.name)).asJson.noSpaces
+            CreateNodeRequest(Node.labels.Account, Map("name" -> request.name))
           )
+        }
+        val jsonDecoder = implicitly[io.circe.Decoder[CreateNodeResponse]]
         for {
           graphRes <- graphMode.apply(graphRequest)
-          r <- EitherT.fromEither[F](
-            decode[CreateNodeResponse](graphRes.body).leftMap(e => ResponseFormatError(graphRes, e): ModeError)
-          )
+          jsonRes <- graphRes match {
+            case ModeResponse.Json(body) => body.asRight[ModeError].toEitherT[F]
+          }
+          r <- jsonDecoder
+            .decodeJson(jsonRes)
+            .leftMap(e => ResponseFormatError(graphRes, e): ModeError)
+            .toEitherT[F]
         } yield {
           Response(r.id)
         }
@@ -122,18 +127,22 @@ object AccountMode {
       )(implicit graphMode: Mode[F]): EitherT[F, ModeError, Response] = {
         val graphRequest = request match {
           case Request.ById(id) =>
-            createSingleModeRequest(
+            ModeClient.jsonRequest(
               getNodeGraphModeCall,
-              GetNodeRequest(id).asJson.noSpaces
+              GetNodeRequest(id)
             )
           case Request.ByName(name) => ???
         }
-
+        val jsonDecoder = implicitly[io.circe.Decoder[GetNodeResponse]]
         for {
           graphRes <- graphMode.apply(graphRequest)
-          r <- EitherT.fromEither[F](
-            decode[GetNodeResponse](graphRes.body).leftMap(e => ResponseFormatError(graphRes, e): ModeError)
-          )
+          jsonRes <- graphRes match {
+            case ModeResponse.Json(body) => body.asRight[ModeError].toEitherT[F]
+          }
+          r <- jsonDecoder
+            .decodeJson(jsonRes)
+            .leftMap(e => ResponseFormatError(graphRes, e): ModeError)
+            .toEitherT[F]
           name <- EitherT.fromOption[F](r.metadata.get("name"), ifNone = Error.CannotGetAccountName(r.id): ModeError)
         } yield {
           Response(r.id, name)
@@ -176,9 +185,9 @@ object AccountMode {
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
   implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
-    case req if actions.CreateAccountAction.definition.suitsFor(req.call.actionKey) =>
-      req.asActionRequest[actions.CreateAccountAction.Request](req.inputType)
-    case req if actions.GetAccountDetailsAction.definition.suitsFor(req.call.actionKey) =>
-      req.asActionRequest[actions.GetAccountDetailsAction.Request](req.inputType)
+    case req if actions.CreateAccountAction.definition.suitsFor(req.calls.head.actionKey) =>
+      req.asActionRequest[actions.CreateAccountAction.Request]
+    case req if actions.GetAccountDetailsAction.definition.suitsFor(req.calls.head.actionKey) =>
+      req.asActionRequest[actions.GetAccountDetailsAction.Request]
   }
 }

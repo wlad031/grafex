@@ -1,16 +1,18 @@
 package com.grafex
 
-import cats.data.{ EitherT, NonEmptyList }
-import cats.effect.{ Clock, ExitCode, IO, IOApp, Resource }
+import cats.data.{EitherT, NonEmptyList}
+import cats.effect.{Clock, ExitCase, ExitCode, IO, IOApp, Resource}
+import cats.syntax.either._
 import com.grafex.core.boot.Config.GrafexConfiguration
 import com.grafex.core.boot.Startup.Listener
-import com.grafex.core.boot.{ ArgsParser, Config, Startup }
+import com.grafex.core.boot.{ArgsParser, Config, Startup}
 import com.grafex.core.graph.GraphDataSource
 import com.grafex.core.graph.neo4j.Neo4JGraphDataSource
 import com.grafex.core.implicits._
-import com.grafex.core.internal.neo4j.{ logging => Neo4JLogging }
-import com.grafex.core.listeners.{ SocketListener, WebListener }
-import com.grafex.core.{ ArgsParsingError, VersionRequest, _ }
+import com.grafex.core.internal.neo4j.{logging => Neo4JLogging}
+import com.grafex.core.listeners.{SocketListener, WebListener}
+import com.grafex.core.mode.{Mode, ModeRequest}
+import com.grafex.core.{ArgsParsingError, VersionRequest, _}
 import com.grafex.modes.account.AccountMode
 import com.grafex.modes.datasource.DataSourceMode
 import com.grafex.modes.describe.DescribeMode
@@ -19,7 +21,7 @@ import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import neotypes.GraphDatabase
 import neotypes.cats.effect.implicits._
-import org.neo4j.driver.{ AuthTokens, Config => Neo4JConfig }
+import org.neo4j.driver.{AuthTokens, Config => Neo4JConfig}
 
 object Main extends IOApp {
 
@@ -110,10 +112,13 @@ object Main extends IOApp {
   def buildCliRequest(
     calls: NonEmptyList[Mode.Call],
     data: Startup.Context.Cli.Data,
-    inputType: InputType,
     outputType: OutputType
-  ): Either[GrafexError, Mode.Request] = data match {
-    case Startup.Context.Cli.Data.Json(json) => Right(Mode.Request(calls, json, inputType, outputType))
+  ): Either[GrafexError, ModeRequest] = data match {
+    case Startup.Context.Cli.Data.Json(json) =>
+      io.circe.parser
+        .parse(json)
+        .leftMap(e => ???) // TODO: implement
+        .map(body => ModeRequest.Json(calls, outputType, body))
   }
 
   def launch(
@@ -122,11 +127,11 @@ object Main extends IOApp {
     modeContainer: Mode[IO]
   ): EitherT[IO, GrafexError, ExitCode] = startupCtx match {
 
-    case Startup.Context.Cli(_, _, _, calls, data, inputType, outputType) =>
+    case Startup.Context.Cli(_, _, _, calls, data, _, outputType) =>
       for {
-        req      <- EitherT.fromEither[IO](buildCliRequest(calls, data, inputType, outputType))
+        req      <- buildCliRequest(calls, data, outputType).toEitherT[IO]
         res      <- modeContainer(req)
-        exitCode <- EitherT.right(printWithSuccess(res.body))
+        exitCode <- EitherT.right(printWithSuccess(res.toString))
       } yield exitCode
 
     case Startup.Context.Service(_, _, _, listeners) =>

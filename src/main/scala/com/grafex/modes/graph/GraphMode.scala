@@ -3,7 +3,6 @@ package graph
 
 import cats.data.EitherT
 import cats.effect.Sync
-import com.grafex.core.Mode.ModeInitializationError
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.conversion.{
@@ -13,12 +12,14 @@ import com.grafex.core.conversion.{
   ModeResponseEncoder
 }
 import com.grafex.core.graph.GraphDataSource
+import com.grafex.core.mode.Mode.{ MFunction, ModeInitializationError }
+import com.grafex.core.mode.{ Mode, ModeError }
 import com.grafex.core.syntax._
 import io.circe.generic.auto._
 
 class GraphMode[F[_] : Sync : RunContext, A] private (
   graphDataSource: GraphDataSource[F]
-) extends Mode.MFunction[F, GraphMode.Request, GraphMode.Response] {
+) extends MFunction[F, GraphMode.Request, GraphMode.Response] {
   import GraphMode.actions
 
   override def apply(request: GraphMode.Request): EitherT[F, ModeError, GraphMode.Response] = {
@@ -105,9 +106,9 @@ object GraphMode {
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
   implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
-    case req if actions.GetNode.definition.suitsFor(req.call.actionKey) =>
-      req.asActionRequest[actions.GetNode.Request](req.inputType)
-    case req if actions.CreateNode.definition.suitsFor(req.call.actionKey) =>
-      req.asActionRequest[actions.CreateNode.Request](req.inputType)
+    case req if actions.GetNode.definition.suitsFor(req.calls.head.actionKey) =>
+      req.asActionRequest[actions.GetNode.Request]
+    case req if actions.CreateNode.definition.suitsFor(req.calls.head.actionKey) =>
+      req.asActionRequest[actions.CreateNode.Request]
   }
 }

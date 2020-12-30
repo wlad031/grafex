@@ -1,14 +1,15 @@
-package com.grafex.core.conversion
+package com.grafex.core
+package conversion
 
-import com.grafex.core.{ Mode, ModeError }
+import com.grafex.core.mode.{ ModeError, ModeRequest, ModeResponse }
 
 trait ModeResponseEncoder[RES] {
-  def apply(res: RES)(req: Mode.Request): Either[ModeError, Mode.Response]
+  def apply(res: RES)(req: ModeRequest): Either[ModeError, ModeResponse]
 }
 
 object ModeResponseEncoder {
-  def instance[RES](f: (RES, Mode.Request) => Either[ModeError, Mode.Response]): ModeResponseEncoder[RES] =
+  def instance[RES](f: (RES, ModeRequest) => Either[ModeError, ModeResponse]): ModeResponseEncoder[RES] =
     new ModeResponseEncoder[RES] {
-      override def apply(res: RES)(req: Mode.Request): Either[ModeError, Mode.Response] = f(res, req)
+      override def apply(res: RES)(req: ModeRequest): Either[ModeError, ModeResponse] = f(res, req)
     }
 }
