@@ -32,29 +32,26 @@ class Neo4jMetaDataSource(config: GrafexConfiguration.Foo) extends MetaDataSourc
         .map({
           case Some((id: String, typ: String)) =>
             typ match {
-              case "mongo"   => Right(DataSourceMetadata.Mongo(DataSourceMetadata.Id(id)))
-              case "mysql"   => Right(DataSourceMetadata.Mysql(DataSourceMetadata.Id(id)))
-              case "filesys" => Right(DataSourceMetadata.FileSystem(DataSourceMetadata.Id(id)))
-              case s         => Left(MetaDataSource.Error.InvalidDataSourceType(id, s))
+              case s => Left(MetaDataSource.Error.InvalidDataSourceType(id, s))
             }
           case None => Left(MetaDataSource.Error.DataSourceNotFound(id))
         })
     })
   }
 
-  override def createNode(dataSourceId: Option[String]): EitherT[IO, MetaDataSource.Error, Node] = {
-    val session: Resource[IO, Session[IO]] = for {
-      driver <- GraphDatabase.driver[IO](
-        config.url,
-        AuthTokens.none(),
-        Config.builder().withLogging(Neo4JLogging()).build()
-      )
-      session <- driver.session
-    } yield session
+//  override def createNode[M](dataSourceId: Option[String]): EitherT[IO, MetaDataSource.Error, Node[M]] = {
+//    val session: Resource[IO, Session[IO]] = for {
+//      driver <- GraphDatabase.driver[IO](
+//        config.url,
+//        AuthTokens.none(),
+//        Config.builder().withLogging(Neo4JLogging()).build()
+//      )
+//      session <- driver.session
+//    } yield session
 
 //    EitherT(session.use { s =>
 //      c"CREATE"
 //    })
-    ???
-  }
+//    ???
+//  }
 }

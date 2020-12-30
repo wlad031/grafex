@@ -81,10 +81,7 @@ object DataSourceMode {
                 DSConnection(
                   id = value.id.s,
                   `type` = value match {
-                    case DataSourceMetadata.Mongo(id)      => "mongo"
-                    case DataSourceMetadata.Mysql(id)      => "mysql"
-                    case DataSourceMetadata.FileSystem(id) => "filesys"
-                    case DataSourceMetadata.Virtual(id)    => ???
+                    case DataSourceMetadata.Virtual(id) => ???
                   }
                 )
               )

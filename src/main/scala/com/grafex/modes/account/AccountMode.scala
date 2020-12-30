@@ -1,9 +1,11 @@
-package com.grafex
-package modes
+package com.grafex.modes
 package account
 
-import cats.data.{ EitherT, NonEmptyList }
+import cats.data.EitherT
 import cats.effect.Sync
+import cats.instances.either._
+import cats.syntax.bifunctor._
+import cats.syntax.functor._
 import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
@@ -15,6 +17,7 @@ import com.grafex.core.conversion.{
 }
 import com.grafex.core.syntax.ActionRequestOps
 import io.circe.generic.auto._
+import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 
 class AccountMode[F[_] : Sync : RunContext] private (graphMode: Mode[F])
@@ -24,7 +27,8 @@ class AccountMode[F[_] : Sync : RunContext] private (graphMode: Mode[F])
   override def apply(request: AccountMode.Request): EitherT[F, ModeError, AccountMode.Response] = {
     implicit val gm: Mode[F] = graphMode
     (request match {
-      case req: actions.CreateAccountAction.Request => actions.CreateAccountAction(req)
+      case req: actions.CreateAccountAction.Request     => actions.CreateAccountAction(req)
+      case req: actions.GetAccountDetailsAction.Request => actions.GetAccountDetailsAction(req)
     }).map(x => x: AccountMode.Response)
   }
 }
@@ -39,13 +43,15 @@ object AccountMode {
     Set(InputType.Json),
     Set(OutputType.Json),
     Set(
-      actions.CreateAccountAction.definition
+      actions.CreateAccountAction.definition,
+      actions.GetAccountDetailsAction.definition
     )
   )
 
   def apply[F[_] : Sync : RunContext](graphMode: Mode[F]): Either[ModeInitializationError, AccountMode[F]] = {
     if (List(
-          actions.CreateAccountAction.createNodeGraphModeCall
+          actions.CreateAccountAction.createNodeGraphModeCall,
+          actions.GetAccountDetailsAction.getNodeGraphModeCall
         ).exists(call => !graphMode.definition.suitsFor(call, InputType.Json, OutputType.Json))) {
       Left(ModeInitializationError.NeededCallUnsupported())
     } else {
@@ -62,46 +68,117 @@ object AccountMode {
     object CreateAccountAction {
 
       val definition: Mode.Action.Definition = Mode.Action.Definition(
-        Mode.Action.Key(Mode.Action.Name("create-account")),
+        Mode.Action.Key(Mode.Action.Name("create")),
         Some("""
             |Creates new account.
             |""".stripMargin),
         Set()
       )
 
-      val createNodeGraphModeCall = unsafeParseSingleModeCall("graph.1/create-node")
+      val createNodeGraphModeCall: Mode.Call = unsafeParseSingleModeCall("graph.1/node/create")
 
       def apply[F[_] : Sync : RunContext](
         request: Request
       )(implicit graphMode: Mode[F]): EitherT[F, ModeError, Response] = {
-        val call = Mode.Call.Full(
-          Mode.Key(Mode.Name("graph"), Mode.Version("1")),
-          Mode.Action.Key(Mode.Action.Name("create-node"))
-        )
-        val createNodeRequest = Mode.Request(
-          NonEmptyList(call, Nil),
-          CreateNodeRequest(Node.labels.AccountLabel).asJson.noSpaces,
-          InputType.Json,
-          OutputType.Json
-        )
-
-        ???
+        val graphRequest =
+          createSingleModeRequest(
+            createNodeGraphModeCall,
+            CreateNodeRequest(Node.labels.Account, Map("name" -> request.name)).asJson.noSpaces
+          )
+        for {
+          graphRes <- graphMode.apply(graphRequest)
+          r <- EitherT.fromEither[F](
+            decode[CreateNodeResponse](graphRes.body).leftMap(e => ResponseFormatError(graphRes, e): ModeError)
+          )
+        } yield {
+          Response(r.id)
+        }
       }
 
-      case class Request(name: String) extends AccountMode.Request
-      case class Response(id: String, name: String) extends AccountMode.Response
+      final case class Request(name: String) extends AccountMode.Request
+      final case class Response(id: String) extends AccountMode.Response
 
-      private case class CreateNodeRequest(label: String)
+      private final case class CreateNodeRequest(label: String, metadata: Map[String, String])
+      private final case class CreateNodeResponse(id: String)
 
       implicit val enc: ActionResponseEncoder[Response] = deriveOnlyJsonActionResponseEncoder
       implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
     }
 
+    object GetAccountDetailsAction {
+
+      val definition: Mode.Action.Definition = Mode.Action.Definition(
+        Mode.Action.Key(Mode.Action.Name("get")),
+        Some("""
+               |Returns account details.
+               |""".stripMargin),
+        Set()
+      )
+
+      val getNodeGraphModeCall: Mode.Call = unsafeParseSingleModeCall("graph.1/node/get")
+
+      def apply[F[_] : Sync : RunContext](
+        request: Request
+      )(implicit graphMode: Mode[F]): EitherT[F, ModeError, Response] = {
+        val graphRequest = request match {
+          case Request.ById(id) =>
+            createSingleModeRequest(
+              getNodeGraphModeCall,
+              GetNodeRequest(id).asJson.noSpaces
+            )
+          case Request.ByName(name) => ???
+        }
+
+        for {
+          graphRes <- graphMode.apply(graphRequest)
+          r <- EitherT.fromEither[F](
+            decode[GetNodeResponse](graphRes.body).leftMap(e => ResponseFormatError(graphRes, e): ModeError)
+          )
+          name <- EitherT.fromOption[F](r.metadata.get("name"), ifNone = Error.CannotGetAccountName(r.id): ModeError)
+        } yield {
+          Response(r.id, name)
+        }
+      }
+
+      sealed trait Request extends AccountMode.Request
+      object Request {
+        final case class ById(id: String) extends GetAccountDetailsAction.Request
+        object ById {
+          implicit val dec: ActionRequestDecoder[ById] = deriveOnlyJsonActionRequestDecoder
+        }
+
+        final case class ByName(name: String) extends GetAccountDetailsAction.Request
+        object ByName {
+          implicit val dec: ActionRequestDecoder[ByName] = deriveOnlyJsonActionRequestDecoder
+        }
+
+        implicit val decodeEvent: io.circe.Decoder[Request] =
+          List[io.circe.Decoder[Request]](
+            io.circe.Decoder[Request.ById].widen,
+            io.circe.Decoder[Request.ByName].widen
+          ).reduceLeft(_ or _)
+      }
+
+      final case class Response(id: String, name: String) extends AccountMode.Response
+
+      sealed trait Error
+      object Error {
+        final case class CannotGetAccountName(id: String) extends AccountMode.Error
+      }
+
+      private final case class GetNodeRequest(id: String)
+      private final case class GetNodeResponse(id: String, metadata: Map[String, String])
+
+      implicit val enc: ActionResponseEncoder[Response] = deriveOnlyJsonActionResponseEncoder
+      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
+    }
   }
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
   implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
     case req if actions.CreateAccountAction.definition.suitsFor(req.call.actionKey) =>
       req.asActionRequest[actions.CreateAccountAction.Request](req.inputType)
+    case req if actions.GetAccountDetailsAction.definition.suitsFor(req.call.actionKey) =>
+      req.asActionRequest[actions.GetAccountDetailsAction.Request](req.inputType)
   }
 }

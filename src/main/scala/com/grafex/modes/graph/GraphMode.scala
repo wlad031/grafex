@@ -1,4 +1,5 @@
-package com.grafex.modes.graph
+package com.grafex.modes
+package graph
 
 import cats.data.EitherT
 import cats.effect.Sync
@@ -11,15 +12,17 @@ import com.grafex.core.conversion.{
   ModeRequestDecoder,
   ModeResponseEncoder
 }
+import com.grafex.core.graph.GraphDataSource
 import com.grafex.core.syntax._
 import io.circe.generic.auto._
 
-class GraphMode[F[_] : Sync : RunContext] private (metaDataSource: MetaDataSource[F])
-    extends Mode.MFunction[F, GraphMode.Request, GraphMode.Response] {
+class GraphMode[F[_] : Sync : RunContext, A] private (
+  graphDataSource: GraphDataSource[F]
+) extends Mode.MFunction[F, GraphMode.Request, GraphMode.Response] {
   import GraphMode.actions
 
   override def apply(request: GraphMode.Request): EitherT[F, ModeError, GraphMode.Response] = {
-    implicit val mds: MetaDataSource[F] = metaDataSource
+    implicit val mds: GraphDataSource[F] = graphDataSource
     (request match {
       case req: actions.CreateNode.Request => actions.CreateNode(req)
       case req: actions.GetNode.Request    => actions.GetNode(req)
@@ -29,6 +32,8 @@ class GraphMode[F[_] : Sync : RunContext] private (metaDataSource: MetaDataSourc
 
 object GraphMode {
 
+  type NodeMetadata = Map[String, Any]
+
   val definition: Mode.Definition.Basic = Mode.Definition.Basic(
     Mode.Key(Mode.Name("graph"), Mode.Version("1")),
     None,
@@ -37,10 +42,10 @@ object GraphMode {
     Set(actions.GetNode.definition)
   )
 
-  def apply[F[_] : Sync : RunContext](
-    metaDataSource: MetaDataSource[F]
-  ): Either[ModeInitializationError, GraphMode[F]] = {
-    Right(new GraphMode(metaDataSource))
+  def apply[F[_] : Sync : RunContext, A](
+    graphDataSource: GraphDataSource[F]
+  ): Either[ModeInitializationError, GraphMode[F, A]] = {
+    Right(new GraphMode(graphDataSource))
   }
 
   sealed trait Request
@@ -51,23 +56,24 @@ object GraphMode {
 
     object GetNode {
       val definition: Mode.Action.Definition = Mode.Action.Definition(
-        Mode.Action.Key(Mode.Action.Name("get-node")),
+        Mode.Action.Key(Mode.Action.Name("node/get")),
         None,
         Set()
       )
 
       def apply[F[_] : Sync](
         request: Request
-      )(implicit metaDataSource: MetaDataSource[F]): EitherT[F, ModeError, Response] = {
-        ???
+      )(implicit graphDataSource: GraphDataSource[F]): EitherT[F, ModeError, Response] = {
+        graphDataSource
+          .getNode(request.id)
+          .map(node => Response(node.id, node.labels, node.metadata))
+          .leftMap(error => DataSourceError(error.toString))
       }
 
-      case class Request() extends GraphMode.Request
-      case class Response() extends GraphMode.Response
-
-      sealed trait DataSourceConnection {
-        def id: DataSourceMetadata.Id
-      }
+      final case class Request(id: String) extends GraphMode.Request
+      final case class Response(id: String, labels: List[String], metadata: Map[String, String])
+          extends GraphMode.Response
+      final case class DataSourceError(message: String) extends GraphMode.Error
 
       implicit val enc: ActionResponseEncoder[Response] = deriveOnlyJsonActionResponseEncoder
       implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
@@ -75,7 +81,7 @@ object GraphMode {
 
     object CreateNode {
       val definition: Mode.Action.Definition = Mode.Action.Definition(
-        Mode.Action.Key(Mode.Action.Name("create-node")),
+        Mode.Action.Key(Mode.Action.Name("node/create")),
         None,
         Set()
       )

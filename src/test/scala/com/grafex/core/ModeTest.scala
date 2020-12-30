@@ -1,19 +1,16 @@
 package com.grafex.core
 
 import cats.data.{ EitherT, NonEmptyList }
-import cats.effect.{ Clock, IO }
+import cats.effect.IO
 import cats.syntax.either._
 import com.grafex.core.Mode._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
-import io.chrisdavenport.log4cats.Logger
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import io.circe.generic.auto._
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
-class ModeTest extends AnyFunSuite {
-  import ModeTest._
+class ModeTest extends AnyFunSuite with ModeTestSuite {
 
   test("Basic mode should return ByModeNameOrVersion error for wrong mode name") {
     createMode("mode")()()
@@ -123,9 +120,7 @@ class ModeTest extends AnyFunSuite {
       case Right(Mode.Response(body)) => assert(body.asJson.asObject == """{"a":"right-mode-1"}""".asJson.asObject)
     }
   }
-}
 
-object ModeTest {
   case class Req(a: Int)
   case class Res(a: String)
 
@@ -141,10 +136,7 @@ object ModeTest {
     }
   }
 
-  implicit val testRunContext: RunContext[IO] = new RunContext[IO] {
-    override val clock: Clock[IO] = Clock.create[IO]
-    override val logger: Logger[IO] = Slf4jLogger.fromName[IO]("test").unsafeRunSync() // FIXME
-  }
+  implicit val testRunContext: RunContext[IO] = createTestRunContext[IO].unsafeRunSync()
 
   def createMode(modeName: String, modeVersion: String = "1")(
     supportedInputTypes: Set[InputType] = Set(InputType.Json),

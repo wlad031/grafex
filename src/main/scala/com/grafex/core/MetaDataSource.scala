@@ -4,7 +4,6 @@ import cats.data.EitherT
 
 trait MetaDataSource[F[_]] {
   def getDataSourceById(id: String): EitherT[F, MetaDataSource.Error, DataSourceMetadata]
-  def createNode(dataSourceId: Option[String]): EitherT[F, MetaDataSource.Error, Node]
 }
 
 object MetaDataSource {
