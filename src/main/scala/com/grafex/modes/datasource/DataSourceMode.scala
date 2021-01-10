@@ -5,17 +5,14 @@ import cats.data.EitherT
 import cats.effect.IO
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
-import com.grafex.core.conversion.{
-  ActionRequestDecoder,
-  ActionResponseEncoder,
-  ModeRequestDecoder,
-  ModeResponseEncoder
-}
-import com.grafex.core.mode.Mode.{ MFunction, ModeInitializationError }
-import com.grafex.core.mode.{ Mode, ModeError }
+import com.grafex.core.conversion.{ActionRequestDecoder, ActionResponseEncoder, ModeRequestDecoder, ModeResponseEncoder}
+import com.grafex.core.definition.annotations.actionId
+import com.grafex.core.mode.Mode.{MFunction, ModeInitializationError}
+import com.grafex.core.mode.{Mode, ModeError}
 import com.grafex.core.syntax.ActionRequestOps
 import com.grafex.modes.datasource.DataSourceMode.actions
 import io.circe.generic.auto._
+import com.grafex.core.definition.implicits.all._
 
 class DataSourceMode private (metaDataSource: MetaDataSource[IO])(implicit runContext: RunContext[IO])
     extends MFunction[IO, DataSourceMode.Request, DataSourceMode.Response] {
@@ -32,9 +29,9 @@ class DataSourceMode private (metaDataSource: MetaDataSource[IO])(implicit runCo
 }
 
 object DataSourceMode {
-  val definition: Mode.Definition.Basic = Mode.Definition.Basic(
-    Mode.Key(Mode.Name("ds-connection"), Mode.Version("1")),
-    description = None,
+  val definition = com.grafex.core.definition.mode.Definition(
+    name = "data-source",
+    version = "1",
     Set(InputType.Json),
     Set(OutputType.Json),
     Set(
@@ -64,12 +61,9 @@ object DataSourceMode {
       implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
     }
 
+    @actionId("get")
     object GetDataSourceMeta {
-      val definition: Mode.Action.Definition = Mode.Action.Definition(
-        Mode.Action.Key(Mode.Action.Name("get-ds")),
-        None,
-        Set()
-      )
+      val definition = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
 
       def apply(request: Request)(
         implicit metaDataSource: MetaDataSource[IO]
@@ -102,7 +96,7 @@ object DataSourceMode {
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
   implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
-    case req if actions.GetDataSourceMeta.definition.suitsFor(req.calls.head.actionKey) =>
+    case req if actions.GetDataSourceMeta.definition.suitsFor(req.calls.head.actionId) =>
       req.asActionRequest[actions.GetDataSourceMeta.Request]
   }
 }

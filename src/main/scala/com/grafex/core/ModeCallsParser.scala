@@ -89,8 +89,8 @@ object ModeCallsParser {
   private def createFullCall(modeName: String, version: String, actionName: String): NonEmptyList[Mode.Call] = {
     NonEmptyList(
       Mode.Call.Full(
-        Mode.Key(Mode.Name(modeName), Mode.Version(version)),
-        Mode.Action.Key(Mode.Action.Name(actionName))
+        definition.mode.Id(modeName, version),
+        definition.action.Id(actionName)
       ),
       Nil
     )
@@ -100,8 +100,8 @@ object ModeCallsParser {
   private def createLatestCall(modeName: String, actionName: String): NonEmptyList[Mode.Call] = {
     NonEmptyList(
       Mode.Call.Latest(
-        Mode.Name(modeName),
-        Mode.Action.Key(Mode.Action.Name(actionName))
+        modeName,
+        definition.action.Id(actionName)
       ),
       Nil
     )

@@ -37,29 +37,16 @@ class AccountMode[F[_] : Sync : RunContext] private (graphMode: Mode[F])
 
 object AccountMode {
 
-  val d = com.grafex.core.definition.mode.Definition.apply(
+  val definition = com.grafex.core.definition.mode.Definition.apply(
     name = "account",
     version = "1",
     Set(InputType.Json),
     Set(OutputType.Json),
     Set(
-      CreateAccountAction.d,
-      GetAccountDetailsAction.d
+      CreateAccountAction.definition,
+      GetAccountDetailsAction.definition
     ),
     description = "Manages accounts"
-  )
-
-  val definition: Mode.Definition.Basic = Mode.Definition.Basic(
-    Mode.Key(Mode.Name("account"), Mode.Version("1")),
-    Some("""
-        |Manages accounts.
-        |""".stripMargin),
-    Set(InputType.Json),
-    Set(OutputType.Json),
-    Set(
-      actions.CreateAccountAction.definition,
-      actions.GetAccountDetailsAction.definition
-    )
   )
 
   def apply[F[_] : Sync : RunContext](graphMode: Mode[F]): Either[ModeInitializationError, AccountMode[F]] = {
@@ -91,15 +78,7 @@ object AccountMode {
         @description("Identifier of newly created account") id: String
       ) extends AccountMode.Response
 
-      val d = com.grafex.core.definition.action.Definition.derive[CreateAccountAction.type, Request, Response]
-
-      val definition: Mode.Action.Definition = Mode.Action.Definition(
-        Mode.Action.Key(Mode.Action.Name("create")),
-        Some("""
-            |Creates new account.
-            |""".stripMargin),
-        Set()
-      )
+      val definition = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
 
       val createNodeGraphModeCall: Mode.Call = unsafeParseSingleModeCall("graph.1/node/create")
 
@@ -166,15 +145,7 @@ object AccountMode {
         @description("Account name") name: String
       ) extends AccountMode.Response
 
-      val d = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
-
-      val definition: Mode.Action.Definition = Mode.Action.Definition(
-        Mode.Action.Key(Mode.Action.Name("get")),
-        Some("""
-               |Returns account details.
-               |""".stripMargin),
-        Set()
-      )
+      val definition = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
 
       val getNodeGraphModeCall: Mode.Call = unsafeParseSingleModeCall("graph.1/node/get")
 
@@ -220,9 +191,9 @@ object AccountMode {
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
   implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
-    case req if actions.CreateAccountAction.definition.suitsFor(req.calls.head.actionKey) =>
+    case req if actions.CreateAccountAction.definition.suitsFor(req.calls.head.actionId) =>
       req.asActionRequest[actions.CreateAccountAction.Request]
-    case req if actions.GetAccountDetailsAction.definition.suitsFor(req.calls.head.actionKey) =>
+    case req if actions.GetAccountDetailsAction.definition.suitsFor(req.calls.head.actionId) =>
       req.asActionRequest[actions.GetAccountDetailsAction.Request]
   }
 }

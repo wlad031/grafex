@@ -88,7 +88,7 @@ object Main extends IOApp {
             DescribeMode[IO](
               modes
                 .map(_.definition)
-                .map(_.asInstanceOf[Mode.Definition.Basic]) // FIXME: unsafe operation
+                .map(_.asInstanceOf[com.grafex.core.definition.mode.BasicDefinition]) // FIXME: unsafe operation
             )
           )
 
