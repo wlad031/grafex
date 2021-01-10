@@ -32,7 +32,9 @@ object action {
     input: InputSchema,
     output: OutputSchema,
     description: Option[String]
-  )
+  ) {
+    def suitsFor(id: Id): Boolean = this.id == id
+  }
 
   object Definition {
     def derive[A, IS : FieldEncoder, OS : FieldEncoder](
@@ -47,6 +49,7 @@ object action {
     }
   }
 
+  // TODO: refactor this function
   private def f(name: String, p: Field, m: Option[FieldMetadata]): property.Definition = {
     p match {
       case BooleanField   => property.BooleanDefinition(name, m.flatMap(_.description))
@@ -55,7 +58,8 @@ object action {
       case FloatField     => property.FloatDefinition(name, m.flatMap(_.description))
       case OptionField(p) => property.OptionDefinition(f(name, p, m))
       case ListField(p)   => property.ListDefinition(name, f(name, p, None), m.flatMap(_.description))
-      case EitherField(l, r) => property.EitherDefinition(name, f(name, l, None), f(name, r, None), m.flatMap(_.description))
+      case EitherField(l, r) =>
+        property.EitherDefinition(name, f(name, l, None), f(name, r, None), m.flatMap(_.description))
       case op: ObjectField =>
         op match {
           case wm: AnnotatedObjectField =>

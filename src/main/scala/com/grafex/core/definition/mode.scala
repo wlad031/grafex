@@ -10,7 +10,7 @@ object mode {
 
   final case class Id(name: String, version: String)
 
-  private[mode] sealed trait Callable extends Definition {
+  sealed trait Callable extends Definition {
     def id: Id
     def isLatest: Boolean = false
   }
@@ -35,7 +35,7 @@ object mode {
       outputTypes: Set[OutputType],
       actionDefinitions: Set[action.Definition],
       description: String = null
-    ): Definition = {
+    ): BasicDefinition = {
       BasicDefinition(
         Id(name, version),
         Option(description),
@@ -57,8 +57,8 @@ object mode {
       with Callable {
 
     override def suitsFor(call: Mode.Call): Boolean = call match {
-      case Call.Full(modeId, _)     => ??? //this.id == modeId
-      case Call.Latest(modeName, _) => ??? //isLatest && this.id.name == modeName
+      case Call.Full(modeId, _)     => this.id == modeId
+      case Call.Latest(modeName, _) => isLatest && this.id.name == modeName
     }
 
     override def doesSupport(inputType: InputType): Boolean = inputTypes.contains(inputType)
@@ -100,8 +100,8 @@ object mode {
     override val id: Id = overriddenId
 
     override def suitsFor(call: Mode.Call): Boolean = call match {
-      case Call.Full(modeKey, _)    => ??? // overriddenId == modeKey
-      case Call.Latest(modeName, _) => ??? //isLatest && overriddenId.name == modeName
+      case Call.Full(modeKey, _)    => overriddenId == modeKey
+      case Call.Latest(modeName, _) => isLatest && overriddenId.name == modeName
     }
     override def doesSupport(inputType: InputType): Boolean = definition.doesSupport(inputType)
     override def doesSupport(outputType: OutputType): Boolean = definition.doesSupport(outputType)

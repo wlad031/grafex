@@ -12,7 +12,7 @@ import com.grafex.core.mode.ModeError.InvalidRequest
 /** Represents any possible "mode".
   *
   * Basically, "mode" is just an [[Mode.MFunction]] with input type [[ModeRequest]] and output type [[ModeResponse]].
-  * Also, it provides a [[Mode.Definition]] of itself.
+  * Also, it provides a [[definition.mode.Definition]] of itself.
   *
   * Such modes could be easily composed in different ways:
   *   1. `orElse` composition;
@@ -25,7 +25,7 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends Mode.MFunction[F, M
   import Mode._
 
   /** The definition of the mode. */
-  def definition: Definition
+  def definition: com.grafex.core.definition.mode.Definition
 
   /** `orElse` composition checks whether request suits better for this of that mode and then delegates request to it.
     *
@@ -77,7 +77,10 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends Mode.MFunction[F, M
     *
     * @group Mode constructing
     * */
-  def alias(callOverrides: CallOverrides, definitionCreator: Definition => Definition.Alias): Mode[F] =
+  def alias(
+    callOverrides: CallOverrides,
+    definitionCreator: com.grafex.core.definition.mode.Definition => com.grafex.core.definition.mode.AliasDefinition
+  ): Mode[F] =
     new Alias[F](mode = this)(callOverrides, definitionCreator)
 }
 
@@ -125,7 +128,7 @@ object Mode {
     }
   }
 
-  /** Summoner for basic mode using it's [[Definition]] and [[MFunction]].
+  /** Summoner for basic mode using it's [[definition.mode.Definition]] and [[MFunction]].
     *
     * @param definition the mode's definition
     * @param f the function that does mode's work
@@ -134,7 +137,7 @@ object Mode {
     * @tparam B the type of mode output
     * @return instantiated basic mode
     */
-  def instance[F[_] : Sync : RunContext, A, B](definition: Definition.Basic, f: MFunction[F, A, B])(
+  def instance[F[_] : Sync : RunContext, A, B](definition: com.grafex.core.definition.mode.BasicDefinition, f: MFunction[F, A, B])(
     implicit
     modeRequestDecoder: ModeRequestDecoder[A],
     modeResponseEncoder: ModeResponseEncoder[B]
@@ -142,7 +145,7 @@ object Mode {
     new Basic[F, A, B](f, definition)
 
   def instance[F[_] : Sync : RunContext, A, B](
-    definition: Definition.Basic,
+    definition: com.grafex.core.definition.mode.BasicDefinition,
     fe: Either[ModeInitializationError, MFunction[F, A, B]]
   )(
     implicit
@@ -163,8 +166,8 @@ object Mode {
   /** Represents how mode and some of it's actions can be found and called. */
   sealed trait Call {
 
-    /** Returns the [[Action.Key]] of the call, which should be presented in any implementation of [[Call]]. */
-    def actionKey: Action.Key
+    /** Returns the [[definition.action.Id]] of the call, which should be presented in any implementation of [[Call]]. */
+    def actionId: definition.action.Id
   }
 
   /** Contains implementations of [[Call]]. */
@@ -172,29 +175,29 @@ object Mode {
 
     /** Represents the case when mode called using it's name, version and action name. */
     final case class Full(
-      modeKey: Mode.Key,
-      override val actionKey: Action.Key
+      modeId: definition.mode.Id,
+      override val actionId: definition.action.Id
     ) extends Call
 
     /** Represents the case when mode called using it's name and action name.
       * In this case the version which is marked as latest will be used.
       */
     final case class Latest(
-      modeName: Mode.Name,
-      override val actionKey: Action.Key
+      modeName: String,
+      override val actionId: definition.action.Id
     ) extends Call
 
     /** Creates new mode full call.
       *
       * @note It's just an alias for mode full call main constructor, added just for simplifying the creation of call.
       */
-    def apply(modeKey: Mode.Key, actionKey: Action.Key): Mode.Call.Full = Full(modeKey, actionKey)
+    def apply(modeId: definition.mode.Id, actionId: definition.action.Id): Mode.Call.Full = Full(modeId, actionId)
 
     /** Creates new mode latest call.
       *
       * @note It's just an alias for mode latest call main constructor, added just for simplifying the creation of call.
       */
-    def apply(modeName: Mode.Name, actionKey: Action.Key): Mode.Call.Latest = Latest(modeName, actionKey)
+    def apply(modeName: String, actionId: definition.action.Id): Mode.Call.Latest = Latest(modeName, actionId)
   }
 
   type CallOverrides = Map[NonEmptyList[Call], NonEmptyList[Call]]
@@ -203,7 +206,7 @@ object Mode {
 
   private class Basic[F[_] : Sync : RunContext, A, B](
     f: MFunction[F, A, B],
-    override val definition: Definition.Basic
+    override val definition: com.grafex.core.definition.mode.BasicDefinition
   )(
     implicit
     modeRequestDecoder: ModeRequestDecoder[A],
@@ -238,8 +241,8 @@ object Mode {
 
   private class OrElse[F[_] : Sync : RunContext](left: Mode[F], right: Mode[F]) extends Mode[F] {
 
-    override val definition: Definition.OrElse =
-      Definition.OrElse(left.definition, right.definition)
+    override val definition: com.grafex.core.definition.mode.OrElseDefinition =
+      com.grafex.core.definition.mode.OrElseDefinition(left.definition, right.definition)
 
     private[this] def validateRequestAndGetMode(request: ModeRequest): Either[ModeError, Mode[F]] =
       checkRequestTypeSupport(this.definition, request) match {
@@ -269,7 +272,7 @@ object Mode {
   type ModeResponseWithRequestCombiner = (ModeResponse, ModeRequest) => Either[ModeError, ModeRequest]
   type ModeResponseWithResponseCombiner = (ModeResponse, ModeResponse) => Either[ModeError, ModeResponse]
 
-  private def resAndReqCombiner(definition: Mode.Definition): ModeResponseWithRequestCombiner = (res, req) => {
+  private def resAndReqCombiner(definition: com.grafex.core.definition.mode.Definition): ModeResponseWithRequestCombiner = (res, req) => {
     req.calls match {
       case NonEmptyList(_, Nil) => InvalidRequest.NotEnoughCalls(definition, req).asLeft
       case NonEmptyList(_, x :: xs) =>
@@ -296,7 +299,7 @@ object Mode {
     resCombiner: ModeResponseWithResponseCombiner
   ) extends Mode[F] {
 
-    override def definition: Definition = Definition.AndThen(first.definition, next.definition)
+    override def definition: com.grafex.core.definition.mode.Definition = com.grafex.core.definition.mode.AndThenDefinition(first.definition, next.definition)
 
     private[this] def validateAndPrepareRequest(
       request: ModeRequest
@@ -359,7 +362,7 @@ object Mode {
   object Dynamic {
 
     class Web[F[_] : Sync : RunContext, A, B](config: Web.Config) extends Dynamic[F] {
-      override def definition: Definition = ???
+      override def definition: com.grafex.core.definition.mode.Definition = ???
       override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] = ???
     }
 
@@ -370,15 +373,15 @@ object Mode {
 
   private class Alias[F[_] : Sync : RunContext](
     mode: Mode[F]
-  )(callOverrides: CallOverrides, definitionCreator: Definition => Definition.Alias)
+  )(callOverrides: CallOverrides, definitionCreator: definition.mode.Definition => definition.mode.AliasDefinition)
       extends Mode[F] {
-    override val definition: Definition = definitionCreator(mode.definition)
+    override val definition: com.grafex.core.definition.mode.Definition = definitionCreator(mode.definition)
 
     override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] = ???
   }
 
   private def checkRequestTypeSupport(
-    definition: Definition,
+    definition: com.grafex.core.definition.mode.Definition,
     request: ModeRequest
   ): Option[ModeError] =
     Option.when(!definition.doesSupport(request.inputType))(
@@ -403,150 +406,150 @@ object Mode {
 
 //  case class DependencyCreationError(mode: Mode[_], definition: Definition.Callable) extends GrafexError
 
-  final case class Key(name: Name, version: Version)
-
-  sealed trait Definition {
-    def suitsFor(call: Mode.Call, inputType: InputType, outputType: OutputType): Boolean = {
-      suitsFor(call) && doesSupport(inputType) && doesSupport(outputType)
-    }
-
-    def suitsFor(call: Mode.Call): Boolean
-    def doesSupport(inputType: InputType): Boolean
-    def doesSupport(outputType: OutputType): Boolean
-  }
-
-  object Definition {
-
-    sealed trait Callable extends Definition {
-      def modeKey: Mode.Key
-      def isLatest: Boolean = false
-    }
-
-    case class Basic(
-      override val modeKey: Mode.Key,
-      description: Option[String] = None,
-      supportedInputTypes: Set[InputType],
-      supportedOutputTypes: Set[OutputType],
-      actions: Set[Action.Definition],
-      override val isLatest: Boolean = false
-    ) extends Definition
-        with Callable {
-      private[this] def suitsOneAction(actionKey: Action.Key): Boolean = // TODO: implement
-        true //actions.map(_.suitsFor(actionKey)).size == 1
-
-      override def suitsFor(call: Mode.Call): Boolean = call match {
-        case Call.Full(modeKey, actionKey)    => this.modeKey == modeKey && suitsOneAction(actionKey)
-        case Call.Latest(modeName, actionKey) => isLatest && this.modeKey.name == modeName && suitsOneAction(actionKey)
-      }
-
-      override def doesSupport(inputType: InputType): Boolean = supportedInputTypes.contains(inputType)
-      override def doesSupport(outputType: OutputType): Boolean = supportedOutputTypes.contains(outputType)
-
-      def toLatest: Basic = this.copy(isLatest = true)
-    }
-
-    case class OrElse(
-      left: Definition,
-      right: Definition
-    ) extends Definition {
-      private[this] def or[A](f: (Definition, A) => Boolean)(a: A): Boolean = f(left, a) || f(right, a)
-
-      override def suitsFor(call: Mode.Call): Boolean = or[Mode.Call](_.suitsFor(_))(call)
-      override def doesSupport(inputType: InputType): Boolean = or[InputType](_.doesSupport(_))(inputType)
-      override def doesSupport(outputType: OutputType): Boolean = or[OutputType](_.doesSupport(_))(outputType)
-    }
-
-    case class AndThen(
-      first: Definition,
-      next: Definition
-    ) extends Definition {
-      // FIXME: impossible to implement
-      override def suitsFor(call: Mode.Call): Boolean = ???
-      override def doesSupport(inputType: InputType): Boolean = first.doesSupport(inputType)
-      override def doesSupport(outputType: OutputType): Boolean = next.doesSupport(outputType)
-    }
-
-    case class Alias(
-      overriddenModeKey: Mode.Key,
-      description: Option[String] = None,
-      override val isLatest: Boolean = false
-    )(
-      definition: Definition
-    ) extends Definition
-        with Callable {
-
-      override val modeKey: Mode.Key = overriddenModeKey
-
-      override def suitsFor(call: Mode.Call): Boolean = call match {
-        case Call.Full(modeKey, _)    => overriddenModeKey == modeKey
-        case Call.Latest(modeName, _) => isLatest && overriddenModeKey.name == modeName
-      }
-      override def doesSupport(inputType: InputType): Boolean = definition.doesSupport(inputType)
-      override def doesSupport(outputType: OutputType): Boolean = definition.doesSupport(outputType)
-
-      def toLatest: Alias = this.copy(isLatest = true)(definition)
-    }
-  }
-
-  case class Name(name: String) {
-    override def toString: String = name
-  }
-
-  object Name {
-    def orElse(left: Name, right: Name): Name = Name(s"${left.name}|${right.name}")
-    def andThen(first: Name, next: Name): Name = Name(s"${first.name}>${next.name}")
-  }
-
-  final case class Version(id: String) {
-    override def toString: String = id
-  }
-
-  object Version {
-
-    implicit val versionOrdering: Ordering[Version] = (x: Version, y: Version) => {
-      val xs: List[String] = x.id.split(".", 3).toList
-      val ys: List[String] = y.id.split(".", 3).toList
-      xs.zipAll(ys, "0", "0")
-        .map(p => p._1.compareTo(p._2))
-        .find(_ != 0)
-        .getOrElse(0)
-    }
-  }
-
-  // TODO: move out from Mode object
-  object Action {
-
-    final case class Key(name: Name)
-
-    case class Name(name: String) {
-      override def toString: String = name
-    }
-
-    case class Definition(
-      actionKey: Action.Key,
-      description: Option[String] = None,
-      params: Set[Param.Definition]
-    ) {
-      def suitsFor(actionKey: Action.Key): Boolean = this.actionKey == actionKey
-    }
-  }
-
-  // TODO: move out from Mode object
-  object Param {
-    case class Name(name: String) {
-      override def toString: String = name
-    }
-
-    object Name {
-      def fromString(name: String) = new Name(name)
-    }
-
-    case class Definition(name: Name, description: Option[String] = None)
-
-    // TODO: move under Definition object
-    def apply(name: String, description: Option[String] = None): Definition =
-      Definition(Name.fromString(name), description)
-  }
+//  final case class Key(name: Name, version: Version)
+//
+//  sealed trait Definition {
+//    def suitsFor(call: Mode.Call, inputType: InputType, outputType: OutputType): Boolean = {
+//      suitsFor(call) && doesSupport(inputType) && doesSupport(outputType)
+//    }
+//
+//    def suitsFor(call: Mode.Call): Boolean
+//    def doesSupport(inputType: InputType): Boolean
+//    def doesSupport(outputType: OutputType): Boolean
+//  }
+//
+//  object Definition {
+//
+//    sealed trait Callable extends Definition {
+//      def modeKey: Mode.Key
+//      def isLatest: Boolean = false
+//    }
+//
+//    case class Basic(
+//      override val modeKey: Mode.Key,
+//      description: Option[String] = None,
+//      supportedInputTypes: Set[InputType],
+//      supportedOutputTypes: Set[OutputType],
+//      actions: Set[Action.Definition],
+//      override val isLatest: Boolean = false
+//    ) extends Definition
+//        with Callable {
+//      private[this] def suitsOneAction(actionKey: Action.Key): Boolean = // TODO: implement
+//        true //actions.map(_.suitsFor(actionKey)).size == 1
+//
+//      override def suitsFor(call: Mode.Call): Boolean = call match {
+//        case Call.Full(modeKey, actionKey)    => this.modeKey == modeKey && suitsOneAction(actionKey)
+//        case Call.Latest(modeName, actionKey) => isLatest && this.modeKey.name == modeName && suitsOneAction(actionKey)
+//      }
+//
+//      override def doesSupport(inputType: InputType): Boolean = supportedInputTypes.contains(inputType)
+//      override def doesSupport(outputType: OutputType): Boolean = supportedOutputTypes.contains(outputType)
+//
+//      def toLatest: Basic = this.copy(isLatest = true)
+//    }
+//
+//    case class OrElse(
+//      left: Definition,
+//      right: Definition
+//    ) extends Definition {
+//      private[this] def or[A](f: (Definition, A) => Boolean)(a: A): Boolean = f(left, a) || f(right, a)
+//
+//      override def suitsFor(call: Mode.Call): Boolean = or[Mode.Call](_.suitsFor(_))(call)
+//      override def doesSupport(inputType: InputType): Boolean = or[InputType](_.doesSupport(_))(inputType)
+//      override def doesSupport(outputType: OutputType): Boolean = or[OutputType](_.doesSupport(_))(outputType)
+//    }
+//
+//    case class AndThen(
+//      first: Definition,
+//      next: Definition
+//    ) extends Definition {
+//      // FIXME: impossible to implement
+//      override def suitsFor(call: Mode.Call): Boolean = ???
+//      override def doesSupport(inputType: InputType): Boolean = first.doesSupport(inputType)
+//      override def doesSupport(outputType: OutputType): Boolean = next.doesSupport(outputType)
+//    }
+//
+//    case class Alias(
+//      overriddenModeKey: Mode.Key,
+//      description: Option[String] = None,
+//      override val isLatest: Boolean = false
+//    )(
+//      definition: Definition
+//    ) extends Definition
+//        with Callable {
+//
+//      override val modeKey: Mode.Key = overriddenModeKey
+//
+//      override def suitsFor(call: Mode.Call): Boolean = call match {
+//        case Call.Full(modeKey, _)    => overriddenModeKey == modeKey
+//        case Call.Latest(modeName, _) => isLatest && overriddenModeKey.name == modeName
+//      }
+//      override def doesSupport(inputType: InputType): Boolean = definition.doesSupport(inputType)
+//      override def doesSupport(outputType: OutputType): Boolean = definition.doesSupport(outputType)
+//
+//      def toLatest: Alias = this.copy(isLatest = true)(definition)
+//    }
+//  }
+//
+//  case class Name(name: String) {
+//    override def toString: String = name
+//  }
+//
+//  object Name {
+//    def orElse(left: Name, right: Name): Name = Name(s"${left.name}|${right.name}")
+//    def andThen(first: Name, next: Name): Name = Name(s"${first.name}>${next.name}")
+//  }
+//
+//  final case class Version(id: String) {
+//    override def toString: String = id
+//  }
+//
+//  object Version {
+//
+//    implicit val versionOrdering: Ordering[Version] = (x: Version, y: Version) => {
+//      val xs: List[String] = x.id.split(".", 3).toList
+//      val ys: List[String] = y.id.split(".", 3).toList
+//      xs.zipAll(ys, "0", "0")
+//        .map(p => p._1.compareTo(p._2))
+//        .find(_ != 0)
+//        .getOrElse(0)
+//    }
+//  }
+//
+//  // TODO: move out from Mode object
+//  object Action {
+//
+//    final case class Key(name: Name)
+//
+//    case class Name(name: String) {
+//      override def toString: String = name
+//    }
+//
+//    case class Definition(
+//      actionKey: Action.Key,
+//      description: Option[String] = None,
+//      params: Set[Param.Definition]
+//    ) {
+//      def suitsFor(actionKey: Action.Key): Boolean = this.actionKey == actionKey
+//    }
+//  }
+//
+//  // TODO: move out from Mode object
+//  object Param {
+//    case class Name(name: String) {
+//      override def toString: String = name
+//    }
+//
+//    object Name {
+//      def fromString(name: String) = new Name(name)
+//    }
+//
+//    case class Definition(name: Name, description: Option[String] = None)
+//
+//    // TODO: move under Definition object
+//    def apply(name: String, description: Option[String] = None): Definition =
+//      Definition(Name.fromString(name), description)
+//  }
 
   // endregion
 }

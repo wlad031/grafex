@@ -45,23 +45,22 @@ class AccountModeTest extends AnyFunSuite with ModeTestSuite {
   val resJsonDecoder = implicitly[io.circe.Decoder[TestCreateNodeRequest]]
 
   implicit val dec: ModeRequestDecoder[TestGraphRequest] = ModeRequestDecoder.instance {
-    case req if req.calls.head.actionKey.name.toString == "node/create" =>
+    case req if req.calls.head.actionId.name.toString == "node/create" =>
       resJsonDecoder
         .decodeJson(req.asInstanceOf[ModeRequest.Json].body)
         .leftMap(x => UnknownModeError(x.toString): ModeError)
   }
 
   val graphMode = Mode.instance(
-    Mode.Definition.Basic(
-      Mode.Key(Mode.Name("graph"), Mode.Version("1")),
-      None,
+    definition.mode.Definition(
+      "graph", "1",
       Set(InputType.Json),
       Set(OutputType.Json),
       Set(
-        Mode.Action.Definition(
-          Mode.Action.Key(Mode.Action.Name("create")),
-          None,
-          Set()
+        definition.action.Definition(
+          definition.action.Id("create"),
+          null, null,
+          None
         )
       )
     ),

@@ -1,4 +1,5 @@
-package com.grafex.core.listeners
+package com.grafex.core
+package listeners
 
 import cats.data.EitherT
 import cats.effect.{ConcurrentEffect, ExitCode, IO, Resource, Timer}
@@ -39,7 +40,7 @@ object WebListener {
           res <- modeContainer(
             ModeRequest.web(
               Mode.Call
-                .Full(Mode.Key(Mode.Name(mode), Mode.Version(modeVersion)), Mode.Action.Key(Mode.Action.Name(action))),
+                .Full(definition.mode.Id(mode, modeVersion), definition.action.Id(action)),
               body
             )
           ).value.flatMap({

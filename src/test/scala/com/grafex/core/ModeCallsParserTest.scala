@@ -37,7 +37,7 @@ class ModeCallsParserTest extends AnyFunSuite {
     ModeCallsParser.parse("mode/action") match {
       case Left(error) => fail(s"Unexpected error $error")
       case Right(NonEmptyList(call, Nil)) =>
-        val expectedCall = Mode.Call(Mode.Name("mode"), Mode.Action.Key(Mode.Action.Name("action")))
+        val expectedCall = Mode.Call("mode", definition.action.Id("action"))
         assert(call === expectedCall)
       case Right(r) => fail(s"Unexpected result $r")
     }
@@ -48,7 +48,7 @@ class ModeCallsParserTest extends AnyFunSuite {
       case Left(error) => fail(s"Unexpected error $error")
       case Right(NonEmptyList(call, Nil)) =>
         val expectedCall =
-          Mode.Call(Mode.Key(Mode.Name("mode"), Mode.Version("1")), Mode.Action.Key(Mode.Action.Name("action")))
+          Mode.Call(definition.mode.Id("mode", "1"), definition.action.Id("action"))
         assert(call === expectedCall)
       case Right(r) => fail(s"Unexpected result $r")
     }
@@ -59,7 +59,7 @@ class ModeCallsParserTest extends AnyFunSuite {
       case Left(error) => fail(s"Unexpected error $error")
       case Right(NonEmptyList(call, Nil)) =>
         val expectedCall =
-          Mode.Call(Mode.Key(Mode.Name("mode"), Mode.Version("1.2.3")), Mode.Action.Key(Mode.Action.Name("action")))
+          Mode.Call(definition.mode.Id("mode", "1.2.3"), definition.action.Id("action"))
         assert(call === expectedCall)
       case Right(r) => fail(s"Unexpected result $r")
     }
@@ -70,7 +70,7 @@ class ModeCallsParserTest extends AnyFunSuite {
       case Left(error) => fail(s"Unexpected error $error")
       case Right(NonEmptyList(call, Nil)) =>
         val expectedCall =
-          Mode.Call(Mode.Key(Mode.Name("mode"), Mode.Version("1")), Mode.Action.Key(Mode.Action.Name("action")))
+          Mode.Call(definition.mode.Id("mode", "1"), definition.action.Id("action"))
         assert(call === expectedCall)
       case Right(r) => fail(s"Unexpected result $r")
     }
@@ -98,8 +98,8 @@ class ModeCallsParserTest extends AnyFunSuite {
     ModeCallsParser.parse("mode1/action1>mode2/action2") match {
       case Left(error) => fail(s"Unexpected error $error")
       case Right(NonEmptyList(call1, call2 :: Nil)) =>
-        val expectedCall1 = Mode.Call(Mode.Name("mode1"), Mode.Action.Key(Mode.Action.Name("action1")))
-        val expectedCall2 = Mode.Call(Mode.Name("mode2"), Mode.Action.Key(Mode.Action.Name("action2")))
+        val expectedCall1 = Mode.Call("mode1", definition.action.Id("action1"))
+        val expectedCall2 = Mode.Call("mode2", definition.action.Id("action2"))
         assert(call1 === expectedCall1)
         assert(call2 === expectedCall2)
       case Right(r) => fail(s"Unexpected result $r")
@@ -111,8 +111,8 @@ class ModeCallsParserTest extends AnyFunSuite {
       case Left(error) => fail(s"Unexpected error $error")
       case Right(NonEmptyList(call1, call2 :: Nil)) =>
         val expectedCall1 =
-          Mode.Call(Mode.Key(Mode.Name("mode1"), Mode.Version("1.0.0")), Mode.Action.Key(Mode.Action.Name("action1")))
-        val expectedCall2 = Mode.Call(Mode.Name("mode2"), Mode.Action.Key(Mode.Action.Name("action2")))
+          Mode.Call(definition.mode.Id("mode", "1.0.0"), definition.action.Id("action1"))
+        val expectedCall2 = Mode.Call("mode2", definition.action.Id("action2"))
         assert(call1 === expectedCall1)
         assert(call2 === expectedCall2)
       case Right(r) => fail(s"Unexpected result $r")
@@ -123,9 +123,9 @@ class ModeCallsParserTest extends AnyFunSuite {
     ModeCallsParser.parse("mode1/action1>mode2.1.0.0/action2") match {
       case Left(error) => fail(s"Unexpected error $error")
       case Right(NonEmptyList(call1, call2 :: Nil)) =>
-        val expectedCall1 = Mode.Call(Mode.Name("mode1"), Mode.Action.Key(Mode.Action.Name("action1")))
+        val expectedCall1 = Mode.Call("mode1", definition.action.Id("action1"))
         val expectedCall2 =
-          Mode.Call(Mode.Key(Mode.Name("mode2"), Mode.Version("1.0.0")), Mode.Action.Key(Mode.Action.Name("action2")))
+          Mode.Call(definition.mode.Id("mode", "1.0.0"), definition.action.Id("action2"))
         assert(call1 === expectedCall1)
         assert(call2 === expectedCall2)
       case Right(r) => fail(s"Unexpected result $r")
@@ -137,9 +137,9 @@ class ModeCallsParserTest extends AnyFunSuite {
       case Left(error) => fail(s"Unexpected error $error")
       case Right(NonEmptyList(call1, call2 :: Nil)) =>
         val expectedCall1 =
-          Mode.Call(Mode.Key(Mode.Name("mode1"), Mode.Version("1.0.0")), Mode.Action.Key(Mode.Action.Name("action1")))
+          Mode.Call(definition.mode.Id("mode", "1.0.0"), definition.action.Id("action1"))
         val expectedCall2 =
-          Mode.Call(Mode.Key(Mode.Name("mode2"), Mode.Version("2.0.0")), Mode.Action.Key(Mode.Action.Name("action2")))
+          Mode.Call(definition.mode.Id("mode", "2.0.0"), definition.action.Id("action2"))
         assert(call1 === expectedCall1)
         assert(call2 === expectedCall2)
       case Right(r) => fail(s"Unexpected result $r")

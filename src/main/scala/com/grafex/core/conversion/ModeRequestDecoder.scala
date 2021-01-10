@@ -10,5 +10,5 @@ trait ModeRequestDecoder[REQ] {
 
 object ModeRequestDecoder {
   def instance[REQ](pf: PartialFunction[ModeRequest, Either[ModeError, REQ]]): ModeRequestDecoder[REQ] =
-    (req: ModeRequest) => pf.applyOrElse(req, (req: ModeRequest) => Left(UnknownAction(req.calls.head.actionKey)))
+    (req: ModeRequest) => pf.applyOrElse(req, (req: ModeRequest) => Left(UnknownAction(req.calls.head.actionId)))
 }

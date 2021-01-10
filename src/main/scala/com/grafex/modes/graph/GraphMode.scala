@@ -5,17 +5,15 @@ import cats.data.EitherT
 import cats.effect.Sync
 import com.grafex.core._
 import com.grafex.core.conversion.semiauto._
-import com.grafex.core.conversion.{
-  ActionRequestDecoder,
-  ActionResponseEncoder,
-  ModeRequestDecoder,
-  ModeResponseEncoder
-}
+import com.grafex.core.conversion.{ActionRequestDecoder, ActionResponseEncoder, ModeRequestDecoder, ModeResponseEncoder}
+import com.grafex.core.definition.annotations.actionId
 import com.grafex.core.graph.GraphDataSource
-import com.grafex.core.mode.Mode.{ MFunction, ModeInitializationError }
-import com.grafex.core.mode.{ Mode, ModeError }
+import com.grafex.core.mode.Mode.{MFunction, ModeInitializationError}
+import com.grafex.core.mode.{Mode, ModeError}
 import com.grafex.core.syntax._
+import com.grafex.modes.describe.DescribeMode.actions.ListModeKeys.{Request, Response}
 import io.circe.generic.auto._
+import com.grafex.core.definition.implicits.all._
 
 class GraphMode[F[_] : Sync : RunContext, A] private (
   graphDataSource: GraphDataSource[F]
@@ -35,12 +33,15 @@ object GraphMode {
 
   type NodeMetadata = Map[String, Any]
 
-  val definition: Mode.Definition.Basic = Mode.Definition.Basic(
-    Mode.Key(Mode.Name("graph"), Mode.Version("1")),
-    None,
+  val definition = com.grafex.core.definition.mode.Definition(
+    name = "graph",
+    version = "1",
     Set(InputType.Json),
     Set(OutputType.Json),
-    Set(actions.GetNode.definition)
+    Set(
+      actions.GetNode.definition,
+      actions.CreateNode.definition
+    )
   )
 
   def apply[F[_] : Sync : RunContext, A](
@@ -55,24 +56,21 @@ object GraphMode {
 
   object actions {
 
+    @actionId("get")
     object GetNode {
-      val definition: Mode.Action.Definition = Mode.Action.Definition(
-        Mode.Action.Key(Mode.Action.Name("node/get")),
-        None,
-        Set()
-      )
+      val definition = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
 
       def apply[F[_] : Sync](
         request: Request
       )(implicit graphDataSource: GraphDataSource[F]): EitherT[F, ModeError, Response] = {
         graphDataSource
           .getNode(request.id)
-          .map(node => Response(node.id, node.labels, node.metadata))
+          .map(node => Response(node.id, node.labels))//, node.metadata))
           .leftMap(error => DataSourceError(error.toString))
       }
 
       final case class Request(id: String) extends GraphMode.Request
-      final case class Response(id: String, labels: List[String], metadata: Map[String, String])
+      final case class Response(id: String, labels: List[String])//, metadata: Map[String, String])
           extends GraphMode.Response
       final case class DataSourceError(message: String) extends GraphMode.Error
 
@@ -80,12 +78,9 @@ object GraphMode {
       implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
     }
 
+    @actionId("create")
     object CreateNode {
-      val definition: Mode.Action.Definition = Mode.Action.Definition(
-        Mode.Action.Key(Mode.Action.Name("node/create")),
-        None,
-        Set()
-      )
+      val definition = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
 
       def apply[F[_] : Sync](request: Request): EitherT[F, ModeError, Response] = {
         ???
@@ -106,9 +101,9 @@ object GraphMode {
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
   implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
-    case req if actions.GetNode.definition.suitsFor(req.calls.head.actionKey) =>
+    case req if actions.GetNode.definition.suitsFor(req.calls.head.actionId) =>
       req.asActionRequest[actions.GetNode.Request]
-    case req if actions.CreateNode.definition.suitsFor(req.calls.head.actionKey) =>
+    case req if actions.CreateNode.definition.suitsFor(req.calls.head.actionId) =>
       req.asActionRequest[actions.CreateNode.Request]
   }
 }

@@ -20,8 +20,8 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
         ModeRequest.Json(
           NonEmptyList(
             Call.Full(
-              Mode.Key(Mode.Name("other-mode"), Mode.Version("1")),
-              Mode.Action.Key(Mode.Action.Name("test-action"))
+              definition.mode.Id("other-mode", "1"),
+              definition.action.Id("test-action")
             ),
             Nil
           ),
@@ -46,8 +46,8 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
         ModeRequest.Json(
           NonEmptyList(
             Call.Full(
-              Mode.Key(Mode.Name("other-mode"), Mode.Version("2")),
-              Mode.Action.Key(Mode.Action.Name("test-action"))
+              definition.mode.Id("other-mode", "2"),
+              definition.action.Id("test-action")
             ),
             Nil
           ),
@@ -72,8 +72,8 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
         ModeRequest.Json(
           NonEmptyList(
             Call.Full(
-              Mode.Key(Mode.Name("test-mode"), Mode.Version("1")),
-              Mode.Action.Key(Mode.Action.Name("test-action"))
+              definition.mode.Id("test-mode", "1"),
+              definition.action.Id("test-action")
             ),
             Nil
           ),
@@ -99,7 +99,7 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
     val request = (mode: String) =>
       ModeRequest.Json(
         NonEmptyList(
-          Call.Full(Mode.Key(Mode.Name(mode), Mode.Version("1")), Mode.Action.Key(Mode.Action.Name("test-action"))),
+          Call.Full(definition.mode.Id(mode, "1"), definition.action.Id("test-action")),
           Nil
         ),
         OutputType.Json,
@@ -146,13 +146,12 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
     supportedOutputTypes: Set[OutputType] = Set(OutputType.Json)
   )(actionName: String = "test-action"): Mode[IO] =
     Mode.instance[IO, Req, Res](
-      Mode.Definition.Basic(
-        Mode.Key(Mode.Name(modeName), Mode.Version(modeVersion)),
-        None,
+      definition.mode.Definition(
+       modeName, modeVersion,
         supportedInputTypes,
         supportedOutputTypes,
         Set(
-          Action.Definition(Action.Key(Action.Name(actionName)), None, Set(Param("a")))
+          definition.action.Definition(definition.action.Id(actionName), null, null, None)
         )
       ),
       (req: Req) => EitherT.rightT[IO, ModeError](Res(s"$modeName-${req.a.toString}"))
