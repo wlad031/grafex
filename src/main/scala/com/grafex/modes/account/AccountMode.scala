@@ -13,10 +13,13 @@ import com.grafex.core.conversion.{
   ModeRequestDecoder,
   ModeResponseEncoder
 }
+import com.grafex.core.definition.annotations.{ actionId, description }
+import com.grafex.core.definition.implicits.all._
 import com.grafex.core.mode.Mode.{ MFunction, ModeInitializationError }
 import com.grafex.core.mode.ModeError.ResponseFormatError
 import com.grafex.core.mode.{ Mode, ModeError, ModeResponse }
 import com.grafex.core.syntax.ActionRequestOps
+import com.grafex.modes.account.AccountMode.actions.{ CreateAccountAction, GetAccountDetailsAction }
 import io.circe.generic.auto._
 
 class AccountMode[F[_] : Sync : RunContext] private (graphMode: Mode[F])
@@ -33,6 +36,18 @@ class AccountMode[F[_] : Sync : RunContext] private (graphMode: Mode[F])
 }
 
 object AccountMode {
+
+  val d = com.grafex.core.definition.mode.Definition.apply(
+    name = "account",
+    version = "1",
+    Set(InputType.Json),
+    Set(OutputType.Json),
+    Set(
+      CreateAccountAction.d,
+      GetAccountDetailsAction.d
+    ),
+    description = "Manages accounts"
+  )
 
   val definition: Mode.Definition.Basic = Mode.Definition.Basic(
     Mode.Key(Mode.Name("account"), Mode.Version("1")),
@@ -64,7 +79,19 @@ object AccountMode {
 
   object actions {
 
+    @actionId(name = "create")
+    @description("Creates new account")
     object CreateAccountAction {
+
+      final case class Request(
+        @description("Account name") name: String
+      ) extends AccountMode.Request
+
+      final case class Response(
+        @description("Identifier of newly created account") id: String
+      ) extends AccountMode.Response
+
+      val d = com.grafex.core.definition.action.Definition.derive[CreateAccountAction.type, Request, Response]
 
       val definition: Mode.Action.Definition = Mode.Action.Definition(
         Mode.Action.Key(Mode.Action.Name("create")),
@@ -100,9 +127,6 @@ object AccountMode {
         }
       }
 
-      final case class Request(name: String) extends AccountMode.Request
-      final case class Response(id: String) extends AccountMode.Response
-
       private final case class CreateNodeRequest(label: String, metadata: Map[String, String])
       private final case class CreateNodeResponse(id: String)
 
@@ -110,7 +134,39 @@ object AccountMode {
       implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
     }
 
+    @actionId("get")
+    @description("""
+        | Returns account details.
+        | Accepts account ID or account name.
+        | """.stripMargin)
     object GetAccountDetailsAction {
+
+      sealed trait Request extends AccountMode.Request
+      object Request {
+        final case class ById(
+          @description("Account identifier to search for") id: String
+        ) extends GetAccountDetailsAction.Request
+
+        final case class ByName(
+          @description("Account name to search for") name: String
+        ) extends GetAccountDetailsAction.Request
+
+        implicit val dec1: ActionRequestDecoder[ById] = deriveOnlyJsonActionRequestDecoder
+        implicit val dec2: ActionRequestDecoder[ByName] = deriveOnlyJsonActionRequestDecoder
+
+        implicit val decodeEvent: io.circe.Decoder[Request] =
+          List[io.circe.Decoder[Request]](
+            io.circe.Decoder[Request.ById].widen,
+            io.circe.Decoder[Request.ByName].widen
+          ).reduceLeft(_ or _)
+      }
+
+      final case class Response(
+        @description("Account identifier") id: String,
+        @description("Account name") name: String
+      ) extends AccountMode.Response
+
+      val d = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
 
       val definition: Mode.Action.Definition = Mode.Action.Definition(
         Mode.Action.Key(Mode.Action.Name("get")),
@@ -148,27 +204,6 @@ object AccountMode {
           Response(r.id, name)
         }
       }
-
-      sealed trait Request extends AccountMode.Request
-      object Request {
-        final case class ById(id: String) extends GetAccountDetailsAction.Request
-        object ById {
-          implicit val dec: ActionRequestDecoder[ById] = deriveOnlyJsonActionRequestDecoder
-        }
-
-        final case class ByName(name: String) extends GetAccountDetailsAction.Request
-        object ByName {
-          implicit val dec: ActionRequestDecoder[ByName] = deriveOnlyJsonActionRequestDecoder
-        }
-
-        implicit val decodeEvent: io.circe.Decoder[Request] =
-          List[io.circe.Decoder[Request]](
-            io.circe.Decoder[Request.ById].widen,
-            io.circe.Decoder[Request.ByName].widen
-          ).reduceLeft(_ or _)
-      }
-
-      final case class Response(id: String, name: String) extends AccountMode.Response
 
       sealed trait Error
       object Error {

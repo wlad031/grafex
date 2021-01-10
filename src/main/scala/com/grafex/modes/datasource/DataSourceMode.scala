@@ -1,4 +1,5 @@
-package com.grafex.modes.datasource
+package com.grafex.modes
+package datasource
 
 import cats.data.EitherT
 import cats.effect.IO

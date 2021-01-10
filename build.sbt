@@ -48,10 +48,6 @@ libraryDependencies ++= Seq(
     "com.github.nikita-volkov" % "sext"              % "0.2.4"
   ),
   Seq(
-    "com.beachape" %% "enumeratum",
-    "com.beachape" %% "enumeratum-circe"
-  ).map(_ % "1.6.1"),
-  Seq(
     "com.dimafeng" %% "neotypes",
     "com.dimafeng" %% "neotypes-cats-effect",
     "com.dimafeng" %% "neotypes-cats-data",

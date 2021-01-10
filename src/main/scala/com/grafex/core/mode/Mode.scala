@@ -392,17 +392,6 @@ object Mode {
 
   // region Errors
 
-//  sealed trait InvalidRequest extends ModeError
-//  object InvalidRequest {
-//    case class UnsupportedInputType(modeDef: Definition, request: ModeRequest) extends InvalidRequest
-//    case class UnsupportedOutputType(modeDef: Definition, request: ModeRequest) extends InvalidRequest
-//    sealed trait InappropriateCall extends InvalidRequest
-//    object InappropriateCall {
-//      case class ByModeNameOrVersion(modeDef: Definition, request: ModeRequest) extends InappropriateCall
-//      case class ByNumberOfCalls(modeDef: Definition, request: ModeRequest) extends InappropriateCall
-//    }
-//  }
-
   sealed trait ModeInitializationError extends GrafexError
   object ModeInitializationError {
     final case class NeededCallUnsupported() extends ModeInitializationError
@@ -411,14 +400,6 @@ object Mode {
   // endregion
 
   // region Definitions
-
-  final class Dependency[F[_] : Sync : RunContext] private (
-    val mode: Mode[F],
-    private val definition: Definition.Callable
-  ) {
-    def key: Mode.Key = definition.modeKey
-    def generateCall: Mode.Call = ???
-  }
 
 //  case class DependencyCreationError(mode: Mode[_], definition: Definition.Callable) extends GrafexError
 
