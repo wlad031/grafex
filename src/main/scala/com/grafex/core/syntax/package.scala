@@ -1,7 +1,7 @@
 package com.grafex.core
 
 import com.grafex.core.conversion.{ ActionRequestDecoder, ActionResponseEncoder }
-import com.grafex.core.mode.{ ModeError, ModeRequest, ModeResponse }
+import com.grafex.core.modeFoo.{ ModeError, ModeRequest, ModeResponse }
 
 package object syntax {
   implicit final class AbstractModeOps[A](private val value: A) extends AnyVal {

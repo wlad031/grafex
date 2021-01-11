@@ -1,8 +1,9 @@
 package com.grafex.core
-package mode
+package modeFoo
 
 import cats.data.NonEmptyList
 import cats.syntax.option._
+import com.grafex.core.definitions._
 
 sealed trait ModeRequest {
   def calls: NonEmptyList[Mode.Call]
@@ -55,7 +56,7 @@ object ModeResponse {
 trait ModeError extends GrafexError
 
 object ModeError {
-  final case class UnknownAction(actionId: definition.action.Id) extends ModeError
+  final case class UnknownAction(actionId: action.Id) extends ModeError
   final case class RequestFormatError(request: ModeRequest, ex: Exception) extends ModeError
   final case class ResponseFormatError(response: ModeResponse, ex: Exception) extends ModeError
 
@@ -64,9 +65,10 @@ object ModeError {
     final case class UnsupportedInputType(request: ModeRequest) extends InvalidRequest
     final case class UnsupportedOutputType(outputType: OutputType) extends InvalidRequest
 
-    final case class ModesNotCombinable(first: definition.mode.Definition, second: definition.mode.Definition) extends InvalidRequest
+    final case class ModesNotCombinable(first: mode.Definition, second: mode.Definition) extends InvalidRequest
 
-    final case class WrongMode(modeDefinition: definition.mode.Definition, request: ModeRequest) extends InvalidRequest
-    final case class NotEnoughCalls(modeDefinition: definition.mode.Definition, request: ModeRequest) extends InvalidRequest
+    final case class WrongMode(modeDefinition: mode.Definition, request: ModeRequest) extends InvalidRequest
+    final case class NotEnoughCalls(modeDefinition: definitions.mode.Definition, request: ModeRequest)
+        extends InvalidRequest
   }
 }

@@ -1,8 +1,8 @@
 package com.grafex.core
-package definition
+package definitions
 
-import com.grafex.core.definition.annotations.description
-import com.grafex.core.definition.property._
+import com.grafex.core.definitions.annotations.description
+import com.grafex.core.definitions.property._
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.{ ToTraversable, Zip }
 import shapeless.ops.record.Keys
@@ -12,7 +12,7 @@ import scala.reflect.runtime.{ universe => un }
 
 object implicits {
 
-  object all extends FieldEncoders with PropertyMetadataEncoders
+  trait all extends FieldEncoders with PropertyMetadataEncoders
 
   trait FieldEncoders
       extends PrimitiveFieldEncoders

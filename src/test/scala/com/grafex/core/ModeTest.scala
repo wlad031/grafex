@@ -4,9 +4,9 @@ import cats.data.{ EitherT, NonEmptyList }
 import cats.effect.IO
 import cats.syntax.either._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
-import com.grafex.core.mode.Mode._
-import com.grafex.core.mode.ModeError.{ InvalidRequest, RequestFormatError }
-import com.grafex.core.mode.{ Mode, ModeError, ModeRequest, ModeResponse }
+import com.grafex.core.modeFoo.Mode._
+import com.grafex.core.modeFoo.ModeError.{ InvalidRequest, RequestFormatError }
+import com.grafex.core.modeFoo.{ Mode, ModeError, ModeRequest, ModeResponse }
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
@@ -20,8 +20,8 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
         ModeRequest.Json(
           NonEmptyList(
             Call.Full(
-              definition.mode.Id("other-mode", "1"),
-              definition.action.Id("test-action")
+              definitions.mode.Id("other-mode", "1"),
+              definitions.action.Id("test-action")
             ),
             Nil
           ),
@@ -46,8 +46,8 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
         ModeRequest.Json(
           NonEmptyList(
             Call.Full(
-              definition.mode.Id("other-mode", "2"),
-              definition.action.Id("test-action")
+              definitions.mode.Id("other-mode", "2"),
+              definitions.action.Id("test-action")
             ),
             Nil
           ),
@@ -72,8 +72,8 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
         ModeRequest.Json(
           NonEmptyList(
             Call.Full(
-              definition.mode.Id("test-mode", "1"),
-              definition.action.Id("test-action")
+              definitions.mode.Id("test-mode", "1"),
+              definitions.action.Id("test-action")
             ),
             Nil
           ),
@@ -99,7 +99,7 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
     val request = (mode: String) =>
       ModeRequest.Json(
         NonEmptyList(
-          Call.Full(definition.mode.Id(mode, "1"), definition.action.Id("test-action")),
+          Call.Full(definitions.mode.Id(mode, "1"), definitions.action.Id("test-action")),
           Nil
         ),
         OutputType.Json,
@@ -146,12 +146,12 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
     supportedOutputTypes: Set[OutputType] = Set(OutputType.Json)
   )(actionName: String = "test-action"): Mode[IO] =
     Mode.instance[IO, Req, Res](
-      definition.mode.Definition(
+      definitions.mode.Definition(
        modeName, modeVersion,
         supportedInputTypes,
         supportedOutputTypes,
         Set(
-          definition.action.Definition(definition.action.Id(actionName), null, null, None)
+//          definition.action.Definition(definition.action.Id(actionName), null, null, None)
         )
       ),
       (req: Req) => EitherT.rightT[IO, ModeError](Res(s"$modeName-${req.a.toString}"))

@@ -5,18 +5,19 @@ import cats.effect.Sync
 import com.grafex.core._
 import com.grafex.core.conversion._
 import com.grafex.core.conversion.semiauto._
-import com.grafex.core.definition.annotations.actionId
-import com.grafex.core.mode.Mode.{MFunction, ModeInitializationError }
-import com.grafex.core.mode.{Mode, ModeError}
-import com.grafex.core.syntax.ActionRequestOps
+import com.grafex.core.definitions.annotations.actionId
+import com.grafex.core.definitions.generic.auto._
+import com.grafex.core.definitions.syntax.ActionDefinitionOps
+import com.grafex.core.definitions.{ action, mode }
+import com.grafex.core.modeFoo.Mode.{ MFunction, ModeInitializationError }
+import com.grafex.core.modeFoo.ModeError
+import com.grafex.modes.describe.DescribeMode.actions.{ GetModeDefinitionAction, ListModeKeysAction }
 import io.circe.generic.auto._
-import com.grafex.core.definition.implicits.all._
 
 class DescribeMode[F[_] : Sync : RunContext] private (
-  otherDefinitions: => Seq[definition.mode.Callable],
+  otherDefinitions: => Seq[definitions.mode.Callable],
   amILatest: Boolean = true
 ) extends MFunction[F, DescribeMode.Request, DescribeMode.Response] {
-  import DescribeMode.actions
 
   private[this] lazy val fullMetadata: DescribeMode.Metadata =
     DescribeMode.Metadata(if (amILatest) DescribeMode.definition.toLatest else DescribeMode.definition) ++ otherDefinitions
@@ -26,26 +27,30 @@ class DescribeMode[F[_] : Sync : RunContext] private (
   override def apply(request: DescribeMode.Request): EitherT[F, ModeError, DescribeMode.Response] = {
     implicit val fm: DescribeMode.Metadata = fullMetadata
     request match {
-      case req: actions.ListModeKeys.Request      => EitherT.fromEither(actions.ListModeKeys(req))
-      case req: actions.GetModeDefinition.Request => EitherT.fromEither(actions.GetModeDefinition(req))
+      case req: ListModeKeysAction.Request      => EitherT.fromEither(ListModeKeysAction(req))
+      case req: GetModeDefinitionAction.Request => EitherT.fromEither(GetModeDefinitionAction(req))
     }
   }
 }
 
 object DescribeMode {
-  val definition = com.grafex.core.definition.mode.Definition(
+  implicit val definition: mode.BasicDefinition = mode.Definition(
     name = "describe",
     version = "1",
     Set(InputType.Json),
     Set(OutputType.Json),
     Set(
-      actions.ListModeKeys.definition,
-      actions.GetModeDefinition.definition
+      action.Definition
+        .instance[ListModeKeysAction.type, ListModeKeysAction.Request, ListModeKeysAction.Response]
+        .asDecodable,
+      action.Definition
+        .instance[GetModeDefinitionAction.type, GetModeDefinitionAction.Request, GetModeDefinitionAction.Response]
+        .asDecodable
     )
   )
 
   def apply[F[_] : Sync : RunContext](
-    otherDefinitions: => Seq[com.grafex.core.definition.mode.Callable],
+    otherDefinitions: => Seq[mode.Callable],
     amILatest: Boolean = true
   ): Either[ModeInitializationError, DescribeMode[F]] = {
     Right(new DescribeMode(otherDefinitions, amILatest))
@@ -60,20 +65,18 @@ object DescribeMode {
   object actions {
 
     @actionId(name = "list-mode-keys")
-    object ListModeKeys {
-      val definition = com.grafex.core.definition.action.Definition.derive[ListModeKeys.type, Request, Response]
-
+    object ListModeKeysAction {
       def apply(request: Request)(implicit fullMetadata: Metadata): Either[ModeError, DescribeMode.Response] = Right(
         request.requestMode match {
           case Some(RequestMode.Full()) =>
-            ListModeKeys.Response.Full(
+            ListModeKeysAction.Response.Full(
               fullMetadata.definitionsMap
                 .map({ case (k, d) => ModeKey(k.name.toString, k.version.toString, d.isLatest) })
                 .toList
             )
           // Short is default request mode
           case _ =>
-            ListModeKeys.Response.Short(
+            ListModeKeysAction.Response.Short(
               fullMetadata.definitionsMap
                 .map({ case (k, _) => s"${k.name.toString}.${k.version.toString}" })
                 .toList
@@ -107,22 +110,20 @@ object DescribeMode {
       case class ModeKey(name: String, version: String, isVersionLatest: Boolean)
 
       implicit val enc: ActionResponseEncoder[Response] = deriveOnlyJsonActionResponseEncoder
-      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
+      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder[Request]
     }
 
     @actionId("get-def")
-    object GetModeDefinition {
-      val definition = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
-
+    object GetModeDefinitionAction {
       def apply(request: Request)(implicit fullMetadata: Metadata): Either[ModeError, DescribeMode.Response] = {
         val name = request.modeName
         val version = request.modeVersion
         fullMetadata
           .get(name, version)
           .toRight(UnknownMode(name, version))
-          .map(_.asInstanceOf[com.grafex.core.definition.mode.BasicDefinition]) // FIXME: unsafe operation
+          .map(_.asInstanceOf[mode.BasicDefinition]) // FIXME: unsafe operation
           .map(ModeDefinition.apply)
-          .map(GetModeDefinition.Response)
+          .map(GetModeDefinitionAction.Response)
       }
 
       case class Request(modeName: String, modeVersion: Option[String]) extends DescribeMode.Request
@@ -131,29 +132,30 @@ object DescribeMode {
       case class UnknownMode(name: String, version: Option[String]) extends ModeError
 
       implicit val enc: ActionResponseEncoder[Response] = deriveOnlyJsonActionResponseEncoder
-      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
+      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder[Request]
 
       case class ModeDefinition(
         name: String,
         description: Option[String],
-        version: Version,
+        version: String,
         supportedInputTypes: List[String],
         supportedOutputTypes: List[String],
         actions: List[ActionDefinition]
       )
 
       object ModeDefinition {
-        def apply(md: com.grafex.core.definition.mode.BasicDefinition): ModeDefinition = {
+        def apply(md: mode.BasicDefinition): ModeDefinition = {
           ModeDefinition(
             md.id.name,
             md.description,
-            Version(md.id.version, None), // FIXME: use real version description
+            md.id.version,
             md.inputTypes.map(_.toString).toList,
             md.outputTypes.map(_.toString).toList,
             md.actions
               .map(ad =>
                 ActionDefinition(
-                  ad.id.name,
+                  ad.actionDefinition.id.name,
+                  ad.actionDefinition.description,
                   List() // FIXME
 //                  ad.params.map(pd => ParamDefinition(pd.name.toString)).toList
                 )
@@ -163,29 +165,23 @@ object DescribeMode {
         }
       }
 
-      case class Version(version: String, description: Option[String])
-      case class ActionDefinition(name: String, params: List[ParamDefinition])
+      case class ActionDefinition(name: String, description: Option[String], params: List[ParamDefinition])
       case class ParamDefinition(name: String)
     }
   }
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
-  implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
-    case req if actions.ListModeKeys.definition.suitsFor(req.calls.head.actionId) =>
-      req.asActionRequest[actions.ListModeKeys.Request]
-    case req if actions.GetModeDefinition.definition.suitsFor(req.calls.head.actionId) =>
-      req.asActionRequest[actions.GetModeDefinition.Request]
-  }
+  implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instanceF
 
   /** Encapsulates the map containing mode definitions in convenient for searching way. */
-  private class Metadata(val definitionsMap: Map[Metadata.Key, com.grafex.core.definition.mode.Callable]) {
+  private class Metadata(val definitionsMap: Map[Metadata.Key, com.grafex.core.definitions.mode.Callable]) {
 
     /** Returns new metadata which contains definitions from this and provided metadata. */
     def ++ (that: Metadata): Metadata = new Metadata(this.definitionsMap ++ that.definitionsMap)
 
     def keys: Iterable[Metadata.Key] = definitionsMap.keys
-    def get(key: Metadata.Key): Option[com.grafex.core.definition.mode.Callable] = definitionsMap.get(key)
-    def get(name: String, version: Option[String] = None): Option[com.grafex.core.definition.mode.Callable] = {
+    def get(key: Metadata.Key): Option[mode.Callable] = definitionsMap.get(key)
+    def get(name: String, version: Option[String] = None): Option[com.grafex.core.definitions.mode.Callable] = {
       version match {
         case Some(v) => get(Metadata.Key(name, v))
         case None =>
@@ -207,7 +203,7 @@ object DescribeMode {
     private def apply(): Metadata = new Metadata(Map())
 
     /** Creates metadata with one single definition. */
-    def apply(modeDefinition: com.grafex.core.definition.mode.Callable): Metadata = {
+    def apply(modeDefinition: mode.Callable): Metadata = {
       new Metadata(
         Map(
           Key(

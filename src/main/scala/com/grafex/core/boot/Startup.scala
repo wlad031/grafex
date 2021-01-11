@@ -2,7 +2,7 @@ package com.grafex.core
 package boot
 
 import cats.data.NonEmptyList
-import com.grafex.core.mode.Mode
+import com.grafex.core.modeFoo.Mode
 
 import java.nio.file.Path
 

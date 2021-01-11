@@ -1,5 +1,5 @@
 package com.grafex.core
-package definition
+package definitions
 
 import scala.annotation.StaticAnnotation
 

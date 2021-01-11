@@ -1,18 +1,19 @@
 package com.grafex
 
-import cats.data.{EitherT, NonEmptyList}
-import cats.effect.{Clock, ExitCase, ExitCode, IO, IOApp, Resource}
+import cats.data.{ EitherT, NonEmptyList }
+import cats.effect.{ Clock, ExitCode, IO, IOApp, Resource }
 import cats.syntax.either._
 import com.grafex.core.boot.Config.GrafexConfiguration
 import com.grafex.core.boot.Startup.Listener
-import com.grafex.core.boot.{ArgsParser, Config, Startup}
+import com.grafex.core.boot.{ ArgsParser, Config, Startup }
+import com.grafex.core.definitions.mode
 import com.grafex.core.graph.GraphDataSource
 import com.grafex.core.graph.neo4j.Neo4JGraphDataSource
 import com.grafex.core.implicits._
-import com.grafex.core.internal.neo4j.{logging => Neo4JLogging}
-import com.grafex.core.listeners.{SocketListener, WebListener}
-import com.grafex.core.mode.{Mode, ModeRequest}
-import com.grafex.core.{ArgsParsingError, VersionRequest, _}
+import com.grafex.core.internal.neo4j.{ logging => Neo4JLogging }
+import com.grafex.core.listeners.{ SocketListener, WebListener }
+import com.grafex.core.modeFoo.{ Mode, ModeRequest }
+import com.grafex.core.{ ArgsParsingError, VersionRequest, _ }
 import com.grafex.modes.account.AccountMode
 import com.grafex.modes.datasource.DataSourceMode
 import com.grafex.modes.describe.DescribeMode
@@ -21,7 +22,7 @@ import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import neotypes.GraphDatabase
 import neotypes.cats.effect.implicits._
-import org.neo4j.driver.{AuthTokens, Config => Neo4JConfig}
+import org.neo4j.driver.{ AuthTokens, Config => Neo4JConfig }
 
 object Main extends IOApp {
 
@@ -88,7 +89,7 @@ object Main extends IOApp {
             DescribeMode[IO](
               modes
                 .map(_.definition)
-                .map(_.asInstanceOf[com.grafex.core.definition.mode.BasicDefinition]) // FIXME: unsafe operation
+                .map(_.asInstanceOf[mode.BasicDefinition]) // FIXME: unsafe operation
             )
           )
 

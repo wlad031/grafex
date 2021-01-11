@@ -13,12 +13,13 @@ import com.grafex.core.conversion.{
   ModeRequestDecoder,
   ModeResponseEncoder
 }
-import com.grafex.core.definition.annotations.{ actionId, description }
-import com.grafex.core.definition.implicits.all._
-import com.grafex.core.mode.Mode.{ MFunction, ModeInitializationError }
-import com.grafex.core.mode.ModeError.ResponseFormatError
-import com.grafex.core.mode.{ Mode, ModeError, ModeResponse }
-import com.grafex.core.syntax.ActionRequestOps
+import com.grafex.core.definitions.annotations.{ actionId, description }
+import com.grafex.core.definitions.generic.auto._
+import com.grafex.core.definitions.syntax.ActionDefinitionOps
+import com.grafex.core.definitions.{ action, mode }
+import com.grafex.core.modeFoo.Mode.{ MFunction, ModeInitializationError }
+import com.grafex.core.modeFoo.ModeError.ResponseFormatError
+import com.grafex.core.modeFoo.{ Mode, ModeError, ModeResponse }
 import com.grafex.modes.account.AccountMode.actions.{ CreateAccountAction, GetAccountDetailsAction }
 import io.circe.generic.auto._
 
@@ -36,15 +37,18 @@ class AccountMode[F[_] : Sync : RunContext] private (graphMode: Mode[F])
 }
 
 object AccountMode {
-
-  val definition = com.grafex.core.definition.mode.Definition.apply(
+  implicit val definition: mode.BasicDefinition = mode.Definition.apply(
     name = "account",
     version = "1",
     Set(InputType.Json),
     Set(OutputType.Json),
     Set(
-      CreateAccountAction.definition,
-      GetAccountDetailsAction.definition
+      action.Definition
+        .instance[CreateAccountAction.type, CreateAccountAction.Request, CreateAccountAction.Response]
+        .asDecodable,
+      action.Definition
+        .instance[GetAccountDetailsAction.type, GetAccountDetailsAction.Request, GetAccountDetailsAction.Response]
+        .asDecodable
     ),
     description = "Manages accounts"
   )
@@ -78,8 +82,6 @@ object AccountMode {
         @description("Identifier of newly created account") id: String
       ) extends AccountMode.Response
 
-      val definition = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
-
       val createNodeGraphModeCall: Mode.Call = unsafeParseSingleModeCall("graph.1/node/create")
 
       def apply[F[_] : Sync : RunContext](
@@ -110,14 +112,12 @@ object AccountMode {
       private final case class CreateNodeResponse(id: String)
 
       implicit val enc: ActionResponseEncoder[Response] = deriveOnlyJsonActionResponseEncoder
-      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
+      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder[Request]
     }
 
-    @actionId("get")
-    @description("""
-        | Returns account details.
-        | Accepts account ID or account name.
-        | """.stripMargin)
+    @actionId(name = "get")
+    @description("""Returns account details.
+                  | Accepts account ID or account name.""".stripMargin)
     object GetAccountDetailsAction {
 
       sealed trait Request extends AccountMode.Request
@@ -125,13 +125,16 @@ object AccountMode {
         final case class ById(
           @description("Account identifier to search for") id: String
         ) extends GetAccountDetailsAction.Request
+        object ById {
+          implicit val dec1: ActionRequestDecoder[ById] = deriveOnlyJsonActionRequestDecoder[ById]
+        }
 
         final case class ByName(
           @description("Account name to search for") name: String
         ) extends GetAccountDetailsAction.Request
-
-        implicit val dec1: ActionRequestDecoder[ById] = deriveOnlyJsonActionRequestDecoder
-        implicit val dec2: ActionRequestDecoder[ByName] = deriveOnlyJsonActionRequestDecoder
+        object ByName {
+          implicit val dec2: ActionRequestDecoder[ByName] = deriveOnlyJsonActionRequestDecoder[ByName]
+        }
 
         implicit val decodeEvent: io.circe.Decoder[Request] =
           List[io.circe.Decoder[Request]](
@@ -144,8 +147,6 @@ object AccountMode {
         @description("Account identifier") id: String,
         @description("Account name") name: String
       ) extends AccountMode.Response
-
-      val definition = com.grafex.core.definition.action.Definition.derive[this.type, Request, Response]
 
       val getNodeGraphModeCall: Mode.Call = unsafeParseSingleModeCall("graph.1/node/get")
 
@@ -185,15 +186,10 @@ object AccountMode {
       private final case class GetNodeResponse(id: String, metadata: Map[String, String])
 
       implicit val enc: ActionResponseEncoder[Response] = deriveOnlyJsonActionResponseEncoder
-      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder
+      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder[Request]
     }
   }
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
-  implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instance {
-    case req if actions.CreateAccountAction.definition.suitsFor(req.calls.head.actionId) =>
-      req.asActionRequest[actions.CreateAccountAction.Request]
-    case req if actions.GetAccountDetailsAction.definition.suitsFor(req.calls.head.actionId) =>
-      req.asActionRequest[actions.GetAccountDetailsAction.Request]
-  }
+  implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instanceF
 }

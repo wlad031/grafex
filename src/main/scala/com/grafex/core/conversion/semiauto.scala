@@ -3,8 +3,8 @@ package conversion
 
 import cats.instances.either._
 import cats.syntax.bifunctor._
-import com.grafex.core.mode.ModeError.RequestFormatError
-import com.grafex.core.mode.{ ModeRequest, ModeResponse }
+import com.grafex.core.modeFoo.ModeError.RequestFormatError
+import com.grafex.core.modeFoo.{ ModeRequest, ModeResponse }
 import io.circe.syntax.EncoderOps
 import shapeless.Lazy
 
@@ -20,10 +20,10 @@ object semiauto {
     })
 
   final def deriveOnlyJsonActionRequestDecoder[REQ](
-    implicit jsonDecoder: io.circe.Decoder[REQ]
+    implicit jsonDecoder: Lazy[io.circe.Decoder[REQ]]
   ): ActionRequestDecoder[REQ] =
     ActionRequestDecoder.instance[REQ]({
       case req @ ModeRequest.Json(_, _, body) =>
-        jsonDecoder.decodeJson(body).leftMap(e => RequestFormatError(req, e))
+        jsonDecoder.value.decodeJson(body).leftMap(e => RequestFormatError(req, e))
     })
 }

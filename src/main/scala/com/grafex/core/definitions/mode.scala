@@ -1,8 +1,9 @@
 package com.grafex.core
-package definition
+package definitions
 
-import com.grafex.core.mode.Mode
-import com.grafex.core.mode.Mode.Call
+import com.grafex.core.conversion.ActionRequestDecoder
+import com.grafex.core.modeFoo.Mode
+import com.grafex.core.modeFoo.Mode.Call
 
 object mode {
   final case class Name(name: String)
@@ -26,14 +27,19 @@ object mode {
     def doesSupport(outputType: OutputType): Boolean
   }
 
+  final case class DecodableActionDefinition[A, IS, OS](
+    actionDefinition: action.Definition[A, IS, OS],
+    actionRequestDecoder: ActionRequestDecoder[IS]
+  )
+
   object Definition {
 
-    def apply(
+    def apply[REQ, RES](
       name: String,
       version: String,
       inputTypes: Set[InputType],
       outputTypes: Set[OutputType],
-      actionDefinitions: Set[action.Definition],
+      actionDefinitions: Set[DecodableActionDefinition[_, _, _]],
       description: String = null
     ): BasicDefinition = {
       BasicDefinition(
@@ -51,7 +57,7 @@ object mode {
     description: Option[String],
     inputTypes: Set[InputType],
     outputTypes: Set[OutputType],
-    actions: Set[action.Definition],
+    actions: Set[DecodableActionDefinition[_, _, _]],
     override val isLatest: Boolean = false
   ) extends Definition
       with Callable {
