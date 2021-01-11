@@ -1,10 +1,10 @@
 package com.grafex.core
 package definitions
 
+import com.grafex.core.Mode
 import com.grafex.core.conversion.ActionRequestDecoder
 import com.grafex.core.definitions.annotations.{ description, modeId }
-import com.grafex.core.modeFoo.Mode
-import com.grafex.core.modeFoo.Mode.Call
+import com.grafex.core.Mode.Call
 import shapeless.Annotation
 
 object mode {

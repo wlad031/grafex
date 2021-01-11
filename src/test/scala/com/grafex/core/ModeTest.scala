@@ -4,9 +4,9 @@ import cats.data.{ EitherT, NonEmptyList }
 import cats.effect.IO
 import cats.syntax.either._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
-import com.grafex.core.modeFoo.Mode._
-import com.grafex.core.modeFoo.ModeError.{ InvalidRequest, RequestFormatError }
-import com.grafex.core.modeFoo.{ Mode, ModeError, ModeRequest, ModeResponse }
+import com.grafex.core.Mode._
+import ModeError.{ InvalidRequest, RequestFormatError }
+import com.grafex.core.ModeError
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps

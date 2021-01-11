@@ -3,7 +3,7 @@ package datasource
 
 import cats.data.EitherT
 import cats.effect.IO
-import com.grafex.core._
+import com.grafex.core.{ ModeError, _ }
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.conversion.{
   ActionRequestDecoder,
@@ -15,8 +15,7 @@ import com.grafex.core.definitions.annotations.{ actionId, modeId }
 import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
-import com.grafex.core.modeFoo.Mode.{ MFunction, ModeInitializationError }
-import com.grafex.core.modeFoo.ModeError
+import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
 import com.grafex.modes.datasource.DataSourceMode.actions
 import com.grafex.modes.datasource.DataSourceMode.actions.GetDataSourceMeta
 import io.circe.generic.auto._

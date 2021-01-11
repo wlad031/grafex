@@ -2,15 +2,14 @@ package com.grafex.modes.describe
 
 import cats.data.EitherT
 import cats.effect.Sync
-import com.grafex.core._
+import com.grafex.core.{ ModeError, _ }
 import com.grafex.core.conversion._
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.definitions.annotations.{ actionId, modeId }
 import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
-import com.grafex.core.modeFoo.Mode.{ MFunction, ModeInitializationError }
-import com.grafex.core.modeFoo.ModeError
+import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
 import com.grafex.modes.describe.DescribeMode.actions.{ GetModeDefinitionAction, ListModeKeysAction }
 import io.circe.generic.auto._
 

@@ -1,5 +1,4 @@
 package com.grafex.core
-package modeFoo
 
 import cats.data.NonEmptyList
 import cats.syntax.option._

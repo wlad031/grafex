@@ -3,8 +3,8 @@ package conversion
 
 import cats.instances.either._
 import cats.syntax.bifunctor._
-import com.grafex.core.modeFoo.ModeError.RequestFormatError
-import com.grafex.core.modeFoo.{ ModeRequest, ModeResponse }
+import ModeError.RequestFormatError
+import com.grafex.core.ModeResponse
 import io.circe.syntax.EncoderOps
 import shapeless.Lazy
 

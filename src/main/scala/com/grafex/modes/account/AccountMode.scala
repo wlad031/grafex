@@ -17,9 +17,9 @@ import com.grafex.core.definitions.annotations.{ actionId, description, modeId }
 import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
-import com.grafex.core.modeFoo.Mode.{ MFunction, ModeInitializationError }
-import com.grafex.core.modeFoo.ModeError.ResponseFormatError
-import com.grafex.core.modeFoo.{ Mode, ModeError, ModeResponse }
+import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
+import ModeError.ResponseFormatError
+import com.grafex.core.ModeError
 import com.grafex.modes.account.AccountMode.actions.{ CreateAccountAction, GetAccountDetailsAction }
 import io.circe.generic.auto._
 

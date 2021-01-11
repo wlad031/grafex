@@ -2,8 +2,8 @@ package com.grafex.core
 package conversion
 
 import com.grafex.core.definitions.mode
-import com.grafex.core.modeFoo.ModeError.UnknownAction
-import com.grafex.core.modeFoo.{ ModeError, ModeRequest }
+import ModeError.UnknownAction
+import com.grafex.core.ModeError
 
 trait ModeRequestDecoder[REQ] {
   def apply(req: ModeRequest): Either[ModeError, REQ]

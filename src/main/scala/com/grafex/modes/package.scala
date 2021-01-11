@@ -1,8 +1,7 @@
 package com.grafex
 
 import cats.data.NonEmptyList
-import com.grafex.core.modeFoo.{ Mode, ModeRequest }
-import com.grafex.core.{ ModeCallsParser, OutputType }
+import com.grafex.core.{ Mode, ModeCallsParser, ModeRequest, OutputType }
 import io.circe.syntax.EncoderOps
 
 package object modes {
