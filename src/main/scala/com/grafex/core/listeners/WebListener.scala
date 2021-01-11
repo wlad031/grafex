@@ -2,16 +2,16 @@ package com.grafex.core
 package listeners
 
 import cats.data.EitherT
-import cats.effect.{ConcurrentEffect, ExitCode, IO, Resource, Timer}
+import cats.effect.{ ConcurrentEffect, ExitCode, IO, Resource, Timer }
 import com.grafex.core.boot.Startup
 import com.grafex.core.GrafexError
-import com.grafex.core.modeFoo.{Mode, ModeRequest, ModeResponse}
+import com.grafex.core.modeFoo.{ Mode, ModeRequest, ModeResponse }
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.RequestId
-import org.http4s.util.{CaseInsensitiveString => CIString}
+import org.http4s.util.{ CaseInsensitiveString => CIString }
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -44,9 +44,9 @@ object WebListener {
               body
             )
           ).value.flatMap({
-            case Left(err)  => BadRequest(err.toString)
+            case Left(err)                     => BadRequest(err.toString)
             case Right(ModeResponse.Json(res)) => Ok(res.spaces2)
-            case Right(value) => BadRequest("Invalid response type, sorry") // FIXME
+            case Right(value)                  => BadRequest("Invalid response type, sorry") // FIXME
           })
         } yield res
     }

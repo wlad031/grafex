@@ -53,16 +53,11 @@ class AccountModeTest extends AnyFunSuite with ModeTestSuite {
 
   val graphMode = Mode.instance(
     definitions.mode.Definition(
-      "graph", "1",
+      "graph",
+      "1",
       Set(InputType.Json),
       Set(OutputType.Json),
-      Set(
-//        definition.action.Definition(
-//          definition.action.Id("create"),
-//          null, null,
-//          None
-//        )
-      )
+      Set()
     ),
     new Mode.MFunction[IO, TestGraphRequest, TestGraphResponse] {
       override def apply(request: TestGraphRequest): EitherT[IO, ModeError, TestGraphResponse] = {

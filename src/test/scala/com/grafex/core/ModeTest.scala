@@ -147,12 +147,11 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
   )(actionName: String = "test-action"): Mode[IO] =
     Mode.instance[IO, Req, Res](
       definitions.mode.Definition(
-       modeName, modeVersion,
+        modeName,
+        modeVersion,
         supportedInputTypes,
         supportedOutputTypes,
-        Set(
-//          definition.action.Definition(definition.action.Id(actionName), null, null, None)
-        )
+        Set()
       ),
       (req: Req) => EitherT.rightT[IO, ModeError](Res(s"$modeName-${req.a.toString}"))
     )
