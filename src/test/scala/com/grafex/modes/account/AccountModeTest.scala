@@ -7,7 +7,7 @@ import cats.instances.either._
 import cats.syntax.bifunctor._
 import com.grafex.core._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
-import com.grafex.core.modeFoo.{ Mode, ModeError, ModeRequest, ModeResponse }
+import com.grafex.core.ModeError
 import com.grafex.modes.describe.DescribeMode.UnknownModeError
 import io.circe.generic.auto._
 import io.circe.syntax.EncoderOps

@@ -1,7 +1,6 @@
 package com.grafex.core
 
 import cats.data.NonEmptyList
-import com.grafex.core.modeFoo.Mode
 import org.scalatest.funsuite.AnyFunSuite
 
 class ModeCallsParserTest extends AnyFunSuite {

@@ -3,7 +3,7 @@ package graph
 
 import cats.data.EitherT
 import cats.effect.Sync
-import com.grafex.core._
+import com.grafex.core.{ ModeError, _ }
 import com.grafex.core.conversion.semiauto._
 import com.grafex.core.conversion.{
   ActionRequestDecoder,
@@ -16,8 +16,7 @@ import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
 import com.grafex.core.graph.GraphDataSource
-import com.grafex.core.modeFoo.Mode.{ MFunction, ModeInitializationError }
-import com.grafex.core.modeFoo.ModeError
+import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
 import com.grafex.modes.graph.GraphMode.actions.{ CreateNodeAction, GetNodeAction }
 import io.circe.generic.auto._
 

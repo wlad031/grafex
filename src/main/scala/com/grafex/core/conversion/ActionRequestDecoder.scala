@@ -1,8 +1,8 @@
 package com.grafex.core
 package conversion
 
-import com.grafex.core.modeFoo.ModeError.InvalidRequest
-import com.grafex.core.modeFoo.{ ModeError, ModeRequest }
+import ModeError.InvalidRequest
+import com.grafex.core.ModeError
 
 trait ActionRequestDecoder[+REQ] {
   def decode(request: ModeRequest): Either[ModeError, REQ]

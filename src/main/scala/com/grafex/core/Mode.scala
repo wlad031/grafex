@@ -1,14 +1,13 @@
 package com.grafex.core
-package modeFoo
 
 import cats.data.{ EitherT, NonEmptyList }
 import cats.effect.{ ConcurrentEffect, Sync }
 import cats.instances.option._
 import cats.syntax.either._
 import cats.syntax.semigroupk._
+import com.grafex.core.ModeError.InvalidRequest
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
 import com.grafex.core.definitions._
-import com.grafex.core.modeFoo.ModeError.InvalidRequest
 
 /** Represents any possible "mode".
   *

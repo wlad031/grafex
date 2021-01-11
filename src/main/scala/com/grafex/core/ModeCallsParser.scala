@@ -3,7 +3,6 @@ package com.grafex.core
 import cats.data.NonEmptyList
 import cats.syntax.either._
 import com.grafex.core.definitions._
-import com.grafex.core.modeFoo.Mode
 
 /** Used for parsing strings into [[Mode.Call]] objects.
   *
