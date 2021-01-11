@@ -2,8 +2,10 @@ package com.grafex.core
 package definitions
 
 import com.grafex.core.conversion.ActionRequestDecoder
+import com.grafex.core.definitions.annotations.{ description, modeId }
 import com.grafex.core.modeFoo.Mode
 import com.grafex.core.modeFoo.Mode.Call
+import shapeless.Annotation
 
 object mode {
   final case class Name(name: String)
@@ -27,6 +29,7 @@ object mode {
     def doesSupport(outputType: OutputType): Boolean
   }
 
+  // TODO: try to find out how not to mix definitions and decoders
   final case class DecodableActionDefinition[A, IS, OS](
     actionDefinition: action.Definition[A, IS, OS],
     actionRequestDecoder: ActionRequestDecoder[IS]
@@ -34,17 +37,37 @@ object mode {
 
   object Definition {
 
+    def instance[A](
+      actionDefinitions: Set[DecodableActionDefinition[_, _, _]],
+      inputTypes: Set[InputType] = Set(InputType.Json),
+      outputTypes: Set[OutputType] = Set(OutputType.Json)
+    )(
+      implicit
+      modeIdA: Annotation[modeId, A],
+      descA: Annotation[Option[description], A]
+    ): mode.BasicDefinition = {
+      val id = modeIdA()
+      mode.Definition.apply(
+        id.name,
+        id.version,
+        inputTypes,
+        outputTypes,
+        actionDefinitions,
+        descA().map(_.s)
+      )
+    }
+
     def apply[REQ, RES](
       name: String,
       version: String,
       inputTypes: Set[InputType],
       outputTypes: Set[OutputType],
       actionDefinitions: Set[DecodableActionDefinition[_, _, _]],
-      description: String = null
+      description: Option[String] = None
     ): BasicDefinition = {
       BasicDefinition(
         Id(name, version),
-        Option(description),
+        description,
         inputTypes,
         outputTypes,
         actionDefinitions

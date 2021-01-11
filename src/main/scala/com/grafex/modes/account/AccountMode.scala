@@ -13,7 +13,7 @@ import com.grafex.core.conversion.{
   ModeRequestDecoder,
   ModeResponseEncoder
 }
-import com.grafex.core.definitions.annotations.{ actionId, description }
+import com.grafex.core.definitions.annotations.{ actionId, description, modeId }
 import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
@@ -36,12 +36,10 @@ class AccountMode[F[_] : Sync : RunContext] private (graphMode: Mode[F])
   }
 }
 
+@modeId(name = "account", version = "1")
+@description("Manages accounts")
 object AccountMode {
-  implicit val definition: mode.BasicDefinition = mode.Definition.apply(
-    name = "account",
-    version = "1",
-    Set(InputType.Json),
-    Set(OutputType.Json),
+  implicit val definition: mode.BasicDefinition = mode.Definition.instance[this.type](
     Set(
       action.Definition
         .instance[CreateAccountAction.type, CreateAccountAction.Request, CreateAccountAction.Response]
@@ -49,8 +47,7 @@ object AccountMode {
       action.Definition
         .instance[GetAccountDetailsAction.type, GetAccountDetailsAction.Request, GetAccountDetailsAction.Response]
         .asDecodable
-    ),
-    description = "Manages accounts"
+    )
   )
 
   def apply[F[_] : Sync : RunContext](graphMode: Mode[F]): Either[ModeInitializationError, AccountMode[F]] = {

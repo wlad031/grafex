@@ -11,7 +11,7 @@ import com.grafex.core.conversion.{
   ModeRequestDecoder,
   ModeResponseEncoder
 }
-import com.grafex.core.definitions.annotations.actionId
+import com.grafex.core.definitions.annotations.{ actionId, modeId }
 import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
@@ -34,12 +34,9 @@ class DataSourceMode private (metaDataSource: MetaDataSource[IO])(implicit runCo
   }
 }
 
+@modeId(name = "data-source", version = "1")
 object DataSourceMode {
-  implicit val definition: mode.BasicDefinition = mode.Definition(
-    name = "data-source",
-    version = "1",
-    Set(InputType.Json),
-    Set(OutputType.Json),
+  implicit val definition: mode.BasicDefinition = mode.Definition.instance[this.type](
     Set(
       action.Definition
         .instance[GetDataSourceMeta.type, GetDataSourceMeta.Request, GetDataSourceMeta.Response]

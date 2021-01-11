@@ -1,10 +1,6 @@
 package com.grafex.core
 package definitions
 
-import com.grafex.core.definitions.annotations.{ actionId, description }
-import com.grafex.core.definitions.property._
-import shapeless.Annotation
-
 object action {
 
   final case class Id(name: String)
@@ -23,7 +19,5 @@ object action {
 
   object Definition {
     def instance[A, IS, OS](implicit ev: Definition[A, IS, OS]): Definition[A, IS, OS] = ev
-
-
   }
 }

@@ -11,7 +11,7 @@ import com.grafex.core.conversion.{
   ModeRequestDecoder,
   ModeResponseEncoder
 }
-import com.grafex.core.definitions.annotations.actionId
+import com.grafex.core.definitions.annotations.{ actionId, modeId }
 import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
@@ -33,14 +33,10 @@ class GraphMode[F[_] : Sync : RunContext, A] private (
   }
 }
 
+@modeId(name = "graph", version = "1")
 object GraphMode {
 
-  type NodeMetadata = Map[String, Any]
-  implicit val definition: mode.BasicDefinition = mode.Definition(
-    name = "graph",
-    version = "1",
-    Set(InputType.Json),
-    Set(OutputType.Json),
+  implicit val definition: mode.BasicDefinition = mode.Definition.instance[this.type](
     Set(
       action.Definition.instance[GetNodeAction.type, GetNodeAction.Request, GetNodeAction.Response].asDecodable,
       action.Definition.instance[CreateNodeAction.type, CreateNodeAction.Request, CreateNodeAction.Response].asDecodable
