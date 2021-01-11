@@ -5,7 +5,7 @@ import cats.effect.Sync
 import com.grafex.core._
 import com.grafex.core.conversion._
 import com.grafex.core.conversion.semiauto._
-import com.grafex.core.definitions.annotations.actionId
+import com.grafex.core.definitions.annotations.{ actionId, modeId }
 import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
@@ -33,12 +33,9 @@ class DescribeMode[F[_] : Sync : RunContext] private (
   }
 }
 
+@modeId(name = "describe", version = "1")
 object DescribeMode {
-  implicit val definition: mode.BasicDefinition = mode.Definition(
-    name = "describe",
-    version = "1",
-    Set(InputType.Json),
-    Set(OutputType.Json),
+  implicit val definition: mode.BasicDefinition = mode.Definition.instance[this.type](
     Set(
       action.Definition
         .instance[ListModeKeysAction.type, ListModeKeysAction.Request, ListModeKeysAction.Response]
