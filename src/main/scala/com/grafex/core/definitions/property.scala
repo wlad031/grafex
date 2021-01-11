@@ -1,5 +1,5 @@
 package com.grafex.core
-package definition
+package definitions
 
 /** This package contains everything that needs to describe mode action's input or output data types.
   *

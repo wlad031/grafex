@@ -16,10 +16,10 @@ package object core {
 
   trait GrafexError extends RuntimeException { self =>
 
-    override def getMessage: String = self.toString
+    private[this] def msg: String = self.toString
 
     def errorIO: IO[ExitCode] = IO {
-      System.err.println(getMessage)
+      System.err.println(msg)
       ExitCode.Error
     }
   }

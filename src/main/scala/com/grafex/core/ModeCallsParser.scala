@@ -2,7 +2,8 @@ package com.grafex.core
 
 import cats.data.NonEmptyList
 import cats.syntax.either._
-import com.grafex.core.mode.Mode
+import com.grafex.core.definitions._
+import com.grafex.core.modeFoo.Mode
 
 /** Used for parsing strings into [[Mode.Call]] objects.
   *
@@ -89,8 +90,8 @@ object ModeCallsParser {
   private def createFullCall(modeName: String, version: String, actionName: String): NonEmptyList[Mode.Call] = {
     NonEmptyList(
       Mode.Call.Full(
-        definition.mode.Id(modeName, version),
-        definition.action.Id(actionName)
+        mode.Id(modeName, version),
+        action.Id(actionName)
       ),
       Nil
     )
@@ -101,7 +102,7 @@ object ModeCallsParser {
     NonEmptyList(
       Mode.Call.Latest(
         modeName,
-        definition.action.Id(actionName)
+        action.Id(actionName)
       ),
       Nil
     )

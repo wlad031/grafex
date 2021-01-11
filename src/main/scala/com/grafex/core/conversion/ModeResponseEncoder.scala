@@ -1,7 +1,7 @@
 package com.grafex.core
 package conversion
 
-import com.grafex.core.mode.{ ModeError, ModeRequest, ModeResponse }
+import com.grafex.core.modeFoo.{ ModeError, ModeRequest, ModeResponse }
 
 trait ModeResponseEncoder[RES] {
   def apply(res: RES)(req: ModeRequest): Either[ModeError, ModeResponse]

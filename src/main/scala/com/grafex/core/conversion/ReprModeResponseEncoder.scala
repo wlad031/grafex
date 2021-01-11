@@ -1,7 +1,7 @@
 package com.grafex.core
 package conversion
 
-import com.grafex.core.mode.{ ModeError, ModeRequest, ModeResponse }
+import com.grafex.core.modeFoo.{ ModeError, ModeRequest, ModeResponse }
 import shapeless.{ :+:, CNil, Coproduct, Inl, Inr }
 
 trait ReprModeResponseEncoder[RES] extends ModeResponseEncoder[RES]

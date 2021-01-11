@@ -7,7 +7,7 @@ import cats.instances.either._
 import cats.syntax.bifunctor._
 import com.grafex.core._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
-import com.grafex.core.mode.{ Mode, ModeError, ModeRequest, ModeResponse }
+import com.grafex.core.modeFoo.{ Mode, ModeError, ModeRequest, ModeResponse }
 import com.grafex.modes.describe.DescribeMode.UnknownModeError
 import io.circe.generic.auto._
 import io.circe.syntax.EncoderOps
@@ -52,16 +52,16 @@ class AccountModeTest extends AnyFunSuite with ModeTestSuite {
   }
 
   val graphMode = Mode.instance(
-    definition.mode.Definition(
+    definitions.mode.Definition(
       "graph", "1",
       Set(InputType.Json),
       Set(OutputType.Json),
       Set(
-        definition.action.Definition(
-          definition.action.Id("create"),
-          null, null,
-          None
-        )
+//        definition.action.Definition(
+//          definition.action.Id("create"),
+//          null, null,
+//          None
+//        )
       )
     ),
     new Mode.MFunction[IO, TestGraphRequest, TestGraphResponse] {

@@ -1,5 +1,5 @@
 package com.grafex.core
-package mode
+package modeFoo
 
 import cats.data.{ EitherT, NonEmptyList }
 import cats.effect.{ ConcurrentEffect, Sync }
@@ -7,12 +7,13 @@ import cats.instances.option._
 import cats.syntax.either._
 import cats.syntax.semigroupk._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
-import com.grafex.core.mode.ModeError.InvalidRequest
+import com.grafex.core.definitions._
+import com.grafex.core.modeFoo.ModeError.InvalidRequest
 
 /** Represents any possible "mode".
   *
   * Basically, "mode" is just an [[Mode.MFunction]] with input type [[ModeRequest]] and output type [[ModeResponse]].
-  * Also, it provides a [[definition.mode.Definition]] of itself.
+  * Also, it provides a [[mode.Definition]] of itself.
   *
   * Such modes could be easily composed in different ways:
   *   1. `orElse` composition;
@@ -25,7 +26,7 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends Mode.MFunction[F, M
   import Mode._
 
   /** The definition of the mode. */
-  def definition: com.grafex.core.definition.mode.Definition
+  def definition: mode.Definition
 
   /** `orElse` composition checks whether request suits better for this of that mode and then delegates request to it.
     *
@@ -79,9 +80,9 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends Mode.MFunction[F, M
     * */
   def alias(
     callOverrides: CallOverrides,
-    definitionCreator: com.grafex.core.definition.mode.Definition => com.grafex.core.definition.mode.AliasDefinition
+    definitionCreator: mode.Definition => mode.AliasDefinition
   ): Mode[F] =
-    new Alias[F](mode = this)(callOverrides, definitionCreator)
+    new Alias[F](modeToAlias = this)(callOverrides, definitionCreator)
 }
 
 /** Factory for [[Mode]] instances.
@@ -128,7 +129,7 @@ object Mode {
     }
   }
 
-  /** Summoner for basic mode using it's [[definition.mode.Definition]] and [[MFunction]].
+  /** Summoner for basic mode using it's [[definitions.mode.Definition]] and [[MFunction]].
     *
     * @param definition the mode's definition
     * @param f the function that does mode's work
@@ -137,7 +138,7 @@ object Mode {
     * @tparam B the type of mode output
     * @return instantiated basic mode
     */
-  def instance[F[_] : Sync : RunContext, A, B](definition: com.grafex.core.definition.mode.BasicDefinition, f: MFunction[F, A, B])(
+  def instance[F[_] : Sync : RunContext, A, B](definition: mode.BasicDefinition, f: MFunction[F, A, B])(
     implicit
     modeRequestDecoder: ModeRequestDecoder[A],
     modeResponseEncoder: ModeResponseEncoder[B]
@@ -145,7 +146,7 @@ object Mode {
     new Basic[F, A, B](f, definition)
 
   def instance[F[_] : Sync : RunContext, A, B](
-    definition: com.grafex.core.definition.mode.BasicDefinition,
+    definition: mode.BasicDefinition,
     fe: Either[ModeInitializationError, MFunction[F, A, B]]
   )(
     implicit
@@ -166,8 +167,8 @@ object Mode {
   /** Represents how mode and some of it's actions can be found and called. */
   sealed trait Call {
 
-    /** Returns the [[definition.action.Id]] of the call, which should be presented in any implementation of [[Call]]. */
-    def actionId: definition.action.Id
+    /** Returns the [[definitions.action.Id]] of the call, which should be presented in any implementation of [[Call]]. */
+    def actionId: definitions.action.Id
   }
 
   /** Contains implementations of [[Call]]. */
@@ -175,8 +176,8 @@ object Mode {
 
     /** Represents the case when mode called using it's name, version and action name. */
     final case class Full(
-      modeId: definition.mode.Id,
-      override val actionId: definition.action.Id
+      modeId: definitions.mode.Id,
+      override val actionId: definitions.action.Id
     ) extends Call
 
     /** Represents the case when mode called using it's name and action name.
@@ -184,20 +185,20 @@ object Mode {
       */
     final case class Latest(
       modeName: String,
-      override val actionId: definition.action.Id
+      override val actionId: definitions.action.Id
     ) extends Call
 
     /** Creates new mode full call.
       *
       * @note It's just an alias for mode full call main constructor, added just for simplifying the creation of call.
       */
-    def apply(modeId: definition.mode.Id, actionId: definition.action.Id): Mode.Call.Full = Full(modeId, actionId)
+    def apply(modeId: definitions.mode.Id, actionId: definitions.action.Id): Mode.Call.Full = Full(modeId, actionId)
 
     /** Creates new mode latest call.
       *
       * @note It's just an alias for mode latest call main constructor, added just for simplifying the creation of call.
       */
-    def apply(modeName: String, actionId: definition.action.Id): Mode.Call.Latest = Latest(modeName, actionId)
+    def apply(modeName: String, actionId: definitions.action.Id): Mode.Call.Latest = Latest(modeName, actionId)
   }
 
   type CallOverrides = Map[NonEmptyList[Call], NonEmptyList[Call]]
@@ -206,7 +207,7 @@ object Mode {
 
   private class Basic[F[_] : Sync : RunContext, A, B](
     f: MFunction[F, A, B],
-    override val definition: com.grafex.core.definition.mode.BasicDefinition
+    override val definition: mode.BasicDefinition
   )(
     implicit
     modeRequestDecoder: ModeRequestDecoder[A],
@@ -241,8 +242,8 @@ object Mode {
 
   private class OrElse[F[_] : Sync : RunContext](left: Mode[F], right: Mode[F]) extends Mode[F] {
 
-    override val definition: com.grafex.core.definition.mode.OrElseDefinition =
-      com.grafex.core.definition.mode.OrElseDefinition(left.definition, right.definition)
+    override val definition: mode.OrElseDefinition =
+      mode.OrElseDefinition(left.definition, right.definition)
 
     private[this] def validateRequestAndGetMode(request: ModeRequest): Either[ModeError, Mode[F]] =
       checkRequestTypeSupport(this.definition, request) match {
@@ -272,7 +273,7 @@ object Mode {
   type ModeResponseWithRequestCombiner = (ModeResponse, ModeRequest) => Either[ModeError, ModeRequest]
   type ModeResponseWithResponseCombiner = (ModeResponse, ModeResponse) => Either[ModeError, ModeResponse]
 
-  private def resAndReqCombiner(definition: com.grafex.core.definition.mode.Definition): ModeResponseWithRequestCombiner = (res, req) => {
+  private def resAndReqCombiner(definition: mode.Definition): ModeResponseWithRequestCombiner = (res, req) => {
     req.calls match {
       case NonEmptyList(_, Nil) => InvalidRequest.NotEnoughCalls(definition, req).asLeft
       case NonEmptyList(_, x :: xs) =>
@@ -299,7 +300,7 @@ object Mode {
     resCombiner: ModeResponseWithResponseCombiner
   ) extends Mode[F] {
 
-    override def definition: com.grafex.core.definition.mode.Definition = com.grafex.core.definition.mode.AndThenDefinition(first.definition, next.definition)
+    override def definition: mode.Definition = mode.AndThenDefinition(first.definition, next.definition)
 
     private[this] def validateAndPrepareRequest(
       request: ModeRequest
@@ -362,7 +363,7 @@ object Mode {
   object Dynamic {
 
     class Web[F[_] : Sync : RunContext, A, B](config: Web.Config) extends Dynamic[F] {
-      override def definition: com.grafex.core.definition.mode.Definition = ???
+      override def definition: mode.Definition = ???
       override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] = ???
     }
 
@@ -372,16 +373,16 @@ object Mode {
   }
 
   private class Alias[F[_] : Sync : RunContext](
-    mode: Mode[F]
-  )(callOverrides: CallOverrides, definitionCreator: definition.mode.Definition => definition.mode.AliasDefinition)
+    modeToAlias: Mode[F]
+  )(callOverrides: CallOverrides, definitionCreator: definitions.mode.Definition => definitions.mode.AliasDefinition)
       extends Mode[F] {
-    override val definition: com.grafex.core.definition.mode.Definition = definitionCreator(mode.definition)
+    override val definition: mode.Definition = definitionCreator(modeToAlias.definition)
 
     override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] = ???
   }
 
   private def checkRequestTypeSupport(
-    definition: com.grafex.core.definition.mode.Definition,
+    definition: mode.Definition,
     request: ModeRequest
   ): Option[ModeError] =
     Option.when(!definition.doesSupport(request.inputType))(
