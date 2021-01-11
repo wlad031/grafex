@@ -17,5 +17,6 @@
     </root>
 
     <logger name="org.neo4j.driver.internal" level="WARN"/>
+    <logger name="org.http4s" level="INFO"/>
 
 </configuration>
