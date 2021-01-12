@@ -2,13 +2,13 @@ ThisBuild / organization := "com.grafex"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.4"
 
-resolvers ++= Seq(
+ThisBuild / resolvers ++= Seq(
   "Typesafe".at("https://repo.typesafe.com/typesafe/releases/"),
   "Java.net Maven2 Repository".at("https://download.java.net/maven/2/"),
   "Sonatype OSS Snapshots".at("https://oss.sonatype.org/content/repositories/snapshots")
 )
 
-libraryDependencies ++= Seq(
+ThisBuild / libraryDependencies ++= Seq(
   Seq(
     "com.chuusai" %% "shapeless" % "2.4.0-M1"
   ),
@@ -27,7 +27,7 @@ libraryDependencies ++= Seq(
     "io.circe" %% "circe-parser",
     "io.circe" %% "circe-shapes",
     "io.circe" %% "circe-literal"
-  ).map(_ % "0.12.3"),
+  ).map(_ % "0.13.0"),
   Seq(
     "org.http4s" %% "http4s-dsl",
     "org.http4s" %% "http4s-circe",
@@ -58,7 +58,7 @@ libraryDependencies ++= Seq(
   )
 ).flatten
 
-scalacOptions ++= Seq(
+ThisBuild / scalacOptions ++= Seq(
   "-encoding",
   "utf8",
   "-Xlint:implicit-recursion",
@@ -71,24 +71,35 @@ scalacOptions ++= Seq(
   "-language:postfixOps"
 )
 
-lazy val root = project
-  .in(file("."))
+lazy val core = project
+  .in(file("grafex-core"))
   .enablePlugins(BuildInfoPlugin)
-  .settings(name := "grafex")
   .settings(
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "com.grafex.build"
   )
+
+lazy val `describe-mode`   = project.in(file("grafex-modes/describe")).dependsOn(core)
+lazy val `graph-mode`      = project.in(file("grafex-modes/graph")).dependsOn(core)
+lazy val `account-mode`    = project.in(file("grafex-modes/account")).dependsOn(core, `graph-mode`)
+lazy val `datasource-mode` = project.in(file("grafex-modes/datasource")).dependsOn(core)
+
+lazy val modes = project
+  .in(file("grafex-modes"))
+  .aggregate(`describe-mode`, `graph-mode`, `account-mode`, `datasource-mode`)
+
+lazy val root = project
+  .in(file("."))
+  .dependsOn(core, modes, `describe-mode`, `graph-mode`, `account-mode`, `datasource-mode`)
   .settings(
-    mainClass in assembly := Some("com.grafex.Main")
-  )
-  .settings(
-    assemblyJarName in assembly := "utils.jar"
+    name := "grafex",
+    mainClass in assembly := Some("com.grafex.Main"),
+    assemblyJarName in assembly := "grafex.jar"
   )
 
 Test / testOptions += Tests.Argument(
   framework = Some(TestFrameworks.ScalaTest),
-  args = List("-oSD")
+  args      = List("-oSD")
 )
 
 scalacOptions in (Compile, doc) ++= Seq(
