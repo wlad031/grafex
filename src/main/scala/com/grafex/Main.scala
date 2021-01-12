@@ -12,8 +12,7 @@ import com.grafex.core.graph.neo4j.Neo4JGraphDataSource
 import com.grafex.core.implicits._
 import com.grafex.core.internal.neo4j.{ logging => Neo4JLogging }
 import com.grafex.core.listeners.{ SocketListener, WebListener }
-import com.grafex.core.ModeRequest
-import com.grafex.core.{ ArgsParsingError, VersionRequest, _ }
+import com.grafex.core.{ ArgsParsingError, ModeRequest, VersionRequest, _ }
 import com.grafex.modes.account.AccountMode
 import com.grafex.modes.datasource.DataSourceMode
 import com.grafex.modes.describe.DescribeMode
