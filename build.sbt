@@ -79,9 +79,12 @@ lazy val core = project
     buildInfoPackage := "com.grafex.build"
   )
 
-lazy val `describe-mode`   = project.in(file("grafex-modes/describe")).dependsOn(core)
-lazy val `graph-mode`      = project.in(file("grafex-modes/graph")).dependsOn(core)
-lazy val `account-mode`    = project.in(file("grafex-modes/account")).dependsOn(core, `graph-mode`)
+lazy val `describe-mode` = project.in(file("grafex-modes/describe")).dependsOn(core)
+lazy val `graph-mode` = project.in(file("grafex-modes/graph")).dependsOn(core)
+// FIXME: should not depend on describe mode
+lazy val `account-mode` = project
+  .in(file("grafex-modes/account"))
+  .dependsOn(core % "test->test;compile->compile", `graph-mode`, `describe-mode`)
 lazy val `datasource-mode` = project.in(file("grafex-modes/datasource")).dependsOn(core)
 
 lazy val modes = project
@@ -90,7 +93,15 @@ lazy val modes = project
 
 lazy val root = project
   .in(file("."))
-  .dependsOn(core, modes, `describe-mode`, `graph-mode`, `account-mode`, `datasource-mode`)
+  .aggregate(core, modes, `describe-mode`, `graph-mode`, `account-mode`, `datasource-mode`)
+  .dependsOn(
+    core              % "test->test;compile->compile",
+    modes             % "test->test;compile->compile",
+    `describe-mode`   % "test->test;compile->compile",
+    `graph-mode`      % "test->test;compile->compile",
+    `account-mode`    % "test->test;compile->compile",
+    `datasource-mode` % "test->test;compile->compile"
+  )
   .settings(
     name := "grafex",
     mainClass in assembly := Some("com.grafex.Main"),
@@ -99,7 +110,7 @@ lazy val root = project
 
 Test / testOptions += Tests.Argument(
   framework = Some(TestFrameworks.ScalaTest),
-  args      = List("-oSD")
+  args = List("-oSD")
 )
 
 scalacOptions in (Compile, doc) ++= Seq(
