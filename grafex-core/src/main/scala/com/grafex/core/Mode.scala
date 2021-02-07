@@ -5,7 +5,6 @@ import cats.effect.{ ConcurrentEffect, Sync }
 import cats.instances.option._
 import cats.syntax.either._
 import cats.syntax.semigroupk._
-import com.grafex.core.ModeError.InvalidRequest
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
 import com.grafex.core.definitions._
 
@@ -64,8 +63,9 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends Mode.MFunction[F, M
     resAndReqCombiner: ModeResponseWithRequestCombiner = rarc,
     resCombiner: ModeResponseWithResponseCombiner = resCombiner
   ): Either[InvalidRequest.ModesNotCombinable, Mode[F]] = {
-    if (!this.definition.doesSupport(OutputType.Json) && other.definition.doesSupport(InputType.Json) ||
-        !this.definition.doesSupport(OutputType.Json) && other.definition.doesSupport(OutputType.Json)) {
+    // FIXME
+    if (false /*!this.definition.doesSupport(OutputType.Json) && other.definition.doesSupport(InputType.Json) ||
+        !this.definition.doesSupport(OutputType.Json) && other.definition.doesSupport(OutputType.Json)*/ ) {
       InvalidRequest.ModesNotCombinable(this.definition, other.definition).asLeft
     } else {
       new AndThen[F](first = this, next = other).asRight
@@ -90,14 +90,14 @@ sealed abstract class Mode[F[_] : Sync : RunContext] extends Mode.MFunction[F, M
   */
 object Mode {
 
-  /** Represents any function from some A to [[scala.Either]] B or [[ModeError]] wrapped in some effect F.
+  /** Represents any function from some A to either B or [[GrafexError]] wrapped in some effect F.
     *
     * @tparam F the type of the effect
     * @tparam A the type of function input
     * @tparam B the type of function output
     */
-  trait MFunction[F[_], A, B] extends (A => EitherT[F, ModeError, B]) {
-    override def apply(request: A): EitherT[F, ModeError, B]
+  trait MFunction[F[_], A, B] extends (A => EitherET[F, B]) {
+    override def apply(request: A): EitherET[F, B]
   }
 
   sealed trait DynamicMFunction[F[_], A, B] extends MFunction[F, A, B]
@@ -114,7 +114,7 @@ object Mode {
 
       import scala.concurrent.ExecutionContext.global
 
-      override def apply(request: A): EitherT[F, ModeError, B] = {
+      override def apply(request: A): EitherET[F, B] = {
         EitherT.right(BlazeClientBuilder[F](global).resource.use[F, B] { client =>
 //          val value: F[B] = client.expect[B](config.uri)
 //          value
@@ -137,15 +137,15 @@ object Mode {
     * @tparam B the type of mode output
     * @return instantiated basic mode
     */
-  def instance[F[_] : Sync : RunContext, A, B](definition: mode.BasicDefinition, f: MFunction[F, A, B])(
+  def instance[F[_] : Sync : RunContext, M, A, B](definition: mode.BasicDefinition[M, A, B], f: MFunction[F, A, B])(
     implicit
     modeRequestDecoder: ModeRequestDecoder[A],
     modeResponseEncoder: ModeResponseEncoder[B]
   ): Mode[F] =
-    new Basic[F, A, B](f, definition)
+    new Basic[F, M, A, B](f, definition)
 
-  def instance[F[_] : Sync : RunContext, A, B](
-    definition: mode.BasicDefinition,
+  def instance[F[_] : Sync : RunContext, M, A, B](
+    definition: mode.BasicDefinition[M, A, B],
     fe: Either[ModeInitializationError, MFunction[F, A, B]]
   )(
     implicit
@@ -153,7 +153,7 @@ object Mode {
     modeResponseEncoder: ModeResponseEncoder[B]
   ): Either[ModeInitializationError, Mode[F]] = fe match {
     case Left(error) => Left(error)
-    case Right(f)    => Right(instance[F, A, B](definition, f))
+    case Right(f)    => Right(instance(definition, f))
   }
 
   /** Instantiates the dynamic mode. */
@@ -204,25 +204,25 @@ object Mode {
 
   // region Mode implementations
 
-  private class Basic[F[_] : Sync : RunContext, A, B](
+  private class Basic[F[_] : Sync : RunContext, M, A, B](
     f: MFunction[F, A, B],
-    override val definition: mode.BasicDefinition
+    override val definition: mode.BasicDefinition[M, A, B]
   )(
     implicit
     modeRequestDecoder: ModeRequestDecoder[A],
     modeResponseEncoder: ModeResponseEncoder[B]
   ) extends Mode[F] {
 
-    private[this] def validateRequest(request: ModeRequest): Option[ModeError] =
+    private[this] def validateRequest(request: ModeRequest): Option[GrafexError] =
       checkRequestTypeSupport(definition, request) <+>
       Option.when(
         request.calls
           .map(definition.suitsFor)
           .filterNot(x => x)
           .nonEmpty
-      )(InvalidRequest.WrongMode(definition, request): ModeError)
+      )(InvalidRequest.WrongMode(definition, request): GrafexError)
 
-    override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] =
+    override def apply(request: ModeRequest): EitherET[F, ModeResponse] =
       validateRequest(request) match {
         case Some(error) => error.asLeft.toEitherT[F]
         case None =>
@@ -234,7 +234,7 @@ object Mode {
             for {
               modeRequest      <- modeRequestDecoder.apply(request).toEitherT[F]
               modeResponse     <- f(modeRequest)
-              abstractResponse <- modeResponseEncoder.apply(modeResponse)(request).toEitherT[F]
+              abstractResponse <- modeResponseEncoder.apply((request, modeResponse)).toEitherT[F]
             } yield abstractResponse
       }
   }
@@ -244,9 +244,9 @@ object Mode {
     override val definition: mode.OrElseDefinition =
       mode.OrElseDefinition(left.definition, right.definition)
 
-    private[this] def validateRequestAndGetMode(request: ModeRequest): Either[ModeError, Mode[F]] =
+    private[this] def validateRequestAndGetMode(request: ModeRequest): EitherE[Mode[F]] =
       checkRequestTypeSupport(this.definition, request) match {
-        case Some(error: ModeError) => Left(error)
+        case Some(error: GrafexError) => Left(error)
         case None =>
           if (request.calls.size == 1) {
             if (definition.left.suitsFor(request.calls.head)) Right(left)
@@ -262,31 +262,35 @@ object Mode {
           }
       }
 
-    override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] =
+    override def apply(request: ModeRequest): EitherET[F, ModeResponse] =
       validateRequestAndGetMode(request) match {
         case Left(error) => error.asLeft.toEitherT[F]
         case Right(mode) => mode(request)
       }
   }
 
-  type ModeResponseWithRequestCombiner = (ModeResponse, ModeRequest) => Either[ModeError, ModeRequest]
-  type ModeResponseWithResponseCombiner = (ModeResponse, ModeResponse) => Either[ModeError, ModeResponse]
+  type ModeResponseWithRequestCombiner = (ModeResponse, ModeRequest) => EitherE[ModeRequest]
+  type ModeResponseWithResponseCombiner = (ModeResponse, ModeResponse) => EitherE[ModeResponse]
 
   private def resAndReqCombiner(definition: mode.Definition): ModeResponseWithRequestCombiner = (res, req) => {
     req.calls match {
       case NonEmptyList(_, Nil) => InvalidRequest.NotEnoughCalls(definition, req).asLeft
       case NonEmptyList(_, x :: xs) =>
         (res, req) match {
-          case (ModeResponse.Json(resBody), ModeRequest.Json(_, _, reqBody)) =>
-            ModeRequest.Json(NonEmptyList(x, xs), OutputType.Json, resBody deepMerge reqBody).asRight
+//          case (ModeResponse.Ok(FormattedResponse.Json(resBody)), ModeRequest1.Json(_, _, reqBody)) =>
+//            ModeRequest1.Json(NonEmptyList(x, xs), OutputType.Json, resBody deepMerge reqBody).asRight
+//          case (ModeResponse.Error(FormattedResponse.Json(resBody), _), ModeRequest1.Json(_, _, reqBody)) =>
+//            ModeRequest1.Json(NonEmptyList(x, xs), OutputType.Json, resBody deepMerge reqBody).asRight
+          case _ => ???
         }
     }
   }
 
-  private def resCombiner: ModeResponseWithResponseCombiner = (res, req) => {
-    (res, req) match {
-      case (ModeResponse.Json(res1Body), ModeResponse.Json(res2Body)) =>
-        ModeResponse.Json(res1Body deepMerge res2Body).asRight
+  private def resCombiner: ModeResponseWithResponseCombiner = (res1, res2) => {
+    (res1, res2) match {
+//      case (ModeResponse.Ok(FormattedResponse.Json(res1Body)), ModeResponse.Ok(FormattedResponse.Json(res2Body))) =>
+//        ModeResponse.Ok(FormattedResponse.Json(res1Body deepMerge res2Body)).asRight
+      case _ => ???
     }
   }
 
@@ -303,25 +307,25 @@ object Mode {
 
     private[this] def validateAndPrepareRequest(
       request: ModeRequest
-    ): Either[ModeError, ((Mode[F], ModeRequest), (Mode[F], ModeRequest))] = {
+    ): EitherE[((Mode[F], ModeRequest), (Mode[F], ModeRequest))] = {
       def ifFirstNotAndThen(
         f: Mode[F],
         n: Mode[F]
-      ): Either[ModeError, ((Mode[F], ModeRequest), (Mode[F], ModeRequest))] = {
+      ): EitherE[((Mode[F], ModeRequest), (Mode[F], ModeRequest))] = {
         // FIXME: unsafe operation .get
-        val firstRequest = request.dropTail(OutputType.Json)
+        val firstRequest = request.dropTail
         val firstCall = firstRequest.firstCall
         val maybeNextRequest = request.dropFirst()
         val maybeNextCall = maybeNextRequest.map(_.calls.head)
         val error =
           checkRequestTypeSupport(f.definition, firstRequest) <+>
           Option.when(!f.definition.suitsFor(firstCall))(
-            InvalidRequest.WrongMode(definition, request): ModeError
+            InvalidRequest.WrongMode(definition, request): GrafexError
           ) <+>
           (maybeNextCall match {
             case Some(call) =>
               Option.when(!n.definition.suitsFor(call))(
-                InvalidRequest.WrongMode(definition, request): ModeError
+                InvalidRequest.WrongMode(definition, request): GrafexError
               )
             case None => Some(InvalidRequest.NotEnoughCalls(definition, request))
           })
@@ -336,15 +340,15 @@ object Mode {
       }
 
       (first, next) match {
-        case (f: Basic[F, _, _], n) => ifFirstNotAndThen(f, n)
-        case (f: OrElse[F], n)      => ifFirstNotAndThen(f, n)
-        case (f: Dynamic[F], n)     => ifFirstNotAndThen(f, n)
-        case (f: Alias[F], n)       => ???
-        case (f: AndThen[F], n)     => ???
+        case (f: Basic[F, _, _, _], n) => ifFirstNotAndThen(f, n)
+        case (f: OrElse[F], n)         => ifFirstNotAndThen(f, n)
+        case (f: Dynamic[F], n)        => ifFirstNotAndThen(f, n)
+        case (f: Alias[F], n)          => ???
+        case (f: AndThen[F], n)        => ???
       }
     }
 
-    override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] =
+    override def apply(request: ModeRequest): EitherET[F, ModeResponse] =
       validateAndPrepareRequest(request) match {
         case Left(error) => error.asLeft.toEitherT[F]
         case Right(((m1, r1), (m2, r2))) =>
@@ -363,7 +367,7 @@ object Mode {
 
     class Web[F[_] : Sync : RunContext, A, B](config: Web.Config) extends Dynamic[F] {
       override def definition: mode.Definition = ???
-      override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] = ???
+      override def apply(request: ModeRequest): EitherET[F, ModeResponse] = ???
     }
 
     object Web {
@@ -377,19 +381,19 @@ object Mode {
       extends Mode[F] {
     override val definition: mode.Definition = definitionCreator(modeToAlias.definition)
 
-    override def apply(request: ModeRequest): EitherT[F, ModeError, ModeResponse] = ???
+    override def apply(request: ModeRequest): EitherET[F, ModeResponse] = ???
   }
 
   private def checkRequestTypeSupport(
     definition: mode.Definition,
     request: ModeRequest
-  ): Option[ModeError] =
-    Option.when(!definition.doesSupport(request.inputType))(
-      InvalidRequest.UnsupportedInputType(request): ModeError
-    ) <+>
-    Option.when(!definition.doesSupport(request.outputType))(
-      InvalidRequest.UnsupportedOutputType(request.outputType): ModeError
-    )
+  ): Option[GrafexError] = None // FIXME
+//    Option.when(!definition.doesSupport(request.inputType))(
+//      InvalidRequest.UnsupportedInputType(request): GrafexError
+//    ) <+>
+//    Option.when(!definition.doesSupport(request.outputType))(
+//      InvalidRequest.UnsupportedOutputType(request.outputType): GrafexError
+//    )
 
   // endregion
 
@@ -399,157 +403,5 @@ object Mode {
   object ModeInitializationError {
     final case class NeededCallUnsupported() extends ModeInitializationError
   }
-
-  // endregion
-
-  // region Definitions
-
-//  case class DependencyCreationError(mode: Mode[_], definition: Definition.Callable) extends GrafexError
-
-//  final case class Key(name: Name, version: Version)
-//
-//  sealed trait Definition {
-//    def suitsFor(call: Mode.Call, inputType: InputType, outputType: OutputType): Boolean = {
-//      suitsFor(call) && doesSupport(inputType) && doesSupport(outputType)
-//    }
-//
-//    def suitsFor(call: Mode.Call): Boolean
-//    def doesSupport(inputType: InputType): Boolean
-//    def doesSupport(outputType: OutputType): Boolean
-//  }
-//
-//  object Definition {
-//
-//    sealed trait Callable extends Definition {
-//      def modeKey: Mode.Key
-//      def isLatest: Boolean = false
-//    }
-//
-//    case class Basic(
-//      override val modeKey: Mode.Key,
-//      description: Option[String] = None,
-//      supportedInputTypes: Set[InputType],
-//      supportedOutputTypes: Set[OutputType],
-//      actions: Set[Action.Definition],
-//      override val isLatest: Boolean = false
-//    ) extends Definition
-//        with Callable {
-//      private[this] def suitsOneAction(actionKey: Action.Key): Boolean = // TODO: implement
-//        true //actions.map(_.suitsFor(actionKey)).size == 1
-//
-//      override def suitsFor(call: Mode.Call): Boolean = call match {
-//        case Call.Full(modeKey, actionKey)    => this.modeKey == modeKey && suitsOneAction(actionKey)
-//        case Call.Latest(modeName, actionKey) => isLatest && this.modeKey.name == modeName && suitsOneAction(actionKey)
-//      }
-//
-//      override def doesSupport(inputType: InputType): Boolean = supportedInputTypes.contains(inputType)
-//      override def doesSupport(outputType: OutputType): Boolean = supportedOutputTypes.contains(outputType)
-//
-//      def toLatest: Basic = this.copy(isLatest = true)
-//    }
-//
-//    case class OrElse(
-//      left: Definition,
-//      right: Definition
-//    ) extends Definition {
-//      private[this] def or[A](f: (Definition, A) => Boolean)(a: A): Boolean = f(left, a) || f(right, a)
-//
-//      override def suitsFor(call: Mode.Call): Boolean = or[Mode.Call](_.suitsFor(_))(call)
-//      override def doesSupport(inputType: InputType): Boolean = or[InputType](_.doesSupport(_))(inputType)
-//      override def doesSupport(outputType: OutputType): Boolean = or[OutputType](_.doesSupport(_))(outputType)
-//    }
-//
-//    case class AndThen(
-//      first: Definition,
-//      next: Definition
-//    ) extends Definition {
-//      // FIXME: impossible to implement
-//      override def suitsFor(call: Mode.Call): Boolean = ???
-//      override def doesSupport(inputType: InputType): Boolean = first.doesSupport(inputType)
-//      override def doesSupport(outputType: OutputType): Boolean = next.doesSupport(outputType)
-//    }
-//
-//    case class Alias(
-//      overriddenModeKey: Mode.Key,
-//      description: Option[String] = None,
-//      override val isLatest: Boolean = false
-//    )(
-//      definition: Definition
-//    ) extends Definition
-//        with Callable {
-//
-//      override val modeKey: Mode.Key = overriddenModeKey
-//
-//      override def suitsFor(call: Mode.Call): Boolean = call match {
-//        case Call.Full(modeKey, _)    => overriddenModeKey == modeKey
-//        case Call.Latest(modeName, _) => isLatest && overriddenModeKey.name == modeName
-//      }
-//      override def doesSupport(inputType: InputType): Boolean = definition.doesSupport(inputType)
-//      override def doesSupport(outputType: OutputType): Boolean = definition.doesSupport(outputType)
-//
-//      def toLatest: Alias = this.copy(isLatest = true)(definition)
-//    }
-//  }
-//
-//  case class Name(name: String) {
-//    override def toString: String = name
-//  }
-//
-//  object Name {
-//    def orElse(left: Name, right: Name): Name = Name(s"${left.name}|${right.name}")
-//    def andThen(first: Name, next: Name): Name = Name(s"${first.name}>${next.name}")
-//  }
-//
-//  final case class Version(id: String) {
-//    override def toString: String = id
-//  }
-//
-//  object Version {
-//
-//    implicit val versionOrdering: Ordering[Version] = (x: Version, y: Version) => {
-//      val xs: List[String] = x.id.split(".", 3).toList
-//      val ys: List[String] = y.id.split(".", 3).toList
-//      xs.zipAll(ys, "0", "0")
-//        .map(p => p._1.compareTo(p._2))
-//        .find(_ != 0)
-//        .getOrElse(0)
-//    }
-//  }
-//
-//  // TODO: move out from Mode object
-//  object Action {
-//
-//    final case class Key(name: Name)
-//
-//    case class Name(name: String) {
-//      override def toString: String = name
-//    }
-//
-//    case class Definition(
-//      actionKey: Action.Key,
-//      description: Option[String] = None,
-//      params: Set[Param.Definition]
-//    ) {
-//      def suitsFor(actionKey: Action.Key): Boolean = this.actionKey == actionKey
-//    }
-//  }
-//
-//  // TODO: move out from Mode object
-//  object Param {
-//    case class Name(name: String) {
-//      override def toString: String = name
-//    }
-//
-//    object Name {
-//      def fromString(name: String) = new Name(name)
-//    }
-//
-//    case class Definition(name: Name, description: Option[String] = None)
-//
-//    // TODO: move under Definition object
-//    def apply(name: String, description: Option[String] = None): Definition =
-//      Definition(Name.fromString(name), description)
-//  }
-
   // endregion
 }

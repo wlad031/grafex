@@ -1,23 +1,17 @@
 package com.grafex.core
 package conversion
 
-import com.grafex.core.ModeError
 import shapeless.Generic
 
-trait DerivedModeResponseEncoder[RES] extends ModeResponseEncoder[RES]
+trait DerivedModeResponseEncoder[MOut] extends ModeResponseEncoder[MOut]
 
 object DerivedModeResponseEncoder {
 
-  implicit def deriveEncoder[RES, Repr](
+  implicit def deriveEncoder[MOut, Repr](
     implicit
-    gen: Generic.Aux[RES, Repr],
+    gen: Generic.Aux[MOut, Repr],
     encodeRepr: ReprModeResponseEncoder[Repr]
-  ): DerivedModeResponseEncoder[RES] = DerivedModeResponseEncoder.instance { (res: RES, req: ModeRequest) =>
-    encodeRepr.apply(gen.to(res))(req)
+  ): DerivedModeResponseEncoder[MOut] = new DerivedModeResponseEncoder[MOut] {
+    override def apply(v1: (ModeRequest, MOut)): EitherE[ModeResponse] = encodeRepr.apply((v1._1, gen.to(v1._2)))
   }
-
-  def instance[RES](f: (RES, ModeRequest) => Either[ModeError, ModeResponse]): DerivedModeResponseEncoder[RES] =
-    new DerivedModeResponseEncoder[RES] {
-      override def apply(res: RES)(req: ModeRequest): Either[ModeError, ModeResponse] = f(res, req)
-    }
 }

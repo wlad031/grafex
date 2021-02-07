@@ -1,7 +1,7 @@
 package com.grafex
 
 import cats.data.NonEmptyList
-import com.grafex.core.{ Mode, ModeCallsParser, ModeRequest, OutputType }
+import com.grafex.core.{ Mode, ModeCallsParser, ModeRequest, unsafe }
 import io.circe.syntax.EncoderOps
 
 package object modes {
@@ -14,16 +14,13 @@ package object modes {
     *
     * @note Should not be used in dynamic context as it's not safe.
     */
-  def unsafeParseSingleModeCall(s: String): Mode.Call = ModeCallsParser.parse(s) match {
-    case Left(error)  => sys.error(s"Unexpected error $error")
-    case Right(value) => value.head
-  }
+  def unsafeParseSingleModeCall(s: String): Mode.Call = unsafe(ModeCallsParser.parse(s)).head
 
   object ModeClient {
 
     def jsonRequest[A : io.circe.Encoder](
       call: Mode.Call,
       body: A
-    ): ModeRequest = ModeRequest.Json(NonEmptyList(call, Nil), OutputType.Json, body.asJson)
+    ): ModeRequest = ModeRequest(NonEmptyList(call, Nil), List(body.asJson.noSpaces), options = Map("input" -> "json"))
   }
 }

@@ -33,9 +33,9 @@ object ArgsParser {
     val debugFlag = Opts.flag(long = "debug", help = "Debug output").orFalse
     val verbosityOpt = (verboseFlag, debugFlag).mapN((isVerbose, isDebug) =>
       (isVerbose, isDebug) match {
-        case (false, false) => Verbosity.Normal()
-        case (true, false)  => Verbosity.Verbose()
-        case (_, true)      => Verbosity.Debug()
+        case (false, false) => Verbosity.Normal
+        case (true, false)  => Verbosity.Verbose
+        case (_, true)      => Verbosity.Debug
       }
     )
 
@@ -70,75 +70,40 @@ object ArgsParser {
         ).tupled
       )
       .mapValidated({
-        case (true, true)  => Valid(NonEmptyList(Listener.Web(), List(Listener.Socket())))
-        case (true, false) => Valid(NonEmptyList(Listener.Web(), Nil))
-        case (false, true) => Valid(NonEmptyList(Listener.Socket(), Nil))
+        case (true, true)  => NonEmptyList(Listener.Web(), List(Listener.Socket())).valid
+        case (true, false) => NonEmptyList(Listener.Web(), Nil).valid
+        case (false, true) => NonEmptyList(Listener.Socket(), Nil).valid
         case (false, false) =>
-          Invalid(
-            NonEmptyList(
-              s"""Invalid service run, please specify at least one of the listeners:
-                 |  --web
-                 |  --socket""".stripMargin,
-              Nil
-            )
-          )
+          s"""Invalid service run, please specify at least one of the listeners:
+             |  --web
+             |  --socket""".stripMargin.invalidNel
       })
 
     val callsOpt = Opts
       .argument[String]("calls")
       .mapValidated(calls => {
         ModeCallsParser.parse(calls) match {
-          case Left(err) =>
-            Invalid(
-              NonEmptyList(
-                s"""Error parsing calls: $calls - $err
-                   |Please use the following pattern: <mode>.<version>/<action>""".stripMargin,
-                Nil
-              )
-            )
-          case Right(value) => Valid(value)
+          case Left(error) =>
+            s"""Error parsing calls: $calls - $error
+               |Please use the following pattern: <mode>.<version>/<action>""".stripMargin.invalidNel
+          case Right(value) => value.valid
         }
       })
 
-    val inputTypeOpt = Opts
-      .option[String](long = "in", help = "input type")
-      .mapValidated({
-        case "json" => Valid(InputType.Json)
-        case x =>
-          Invalid(
-            NonEmptyList(
-              s"""Unknown input type: $x.
-                 |Available input types: json.
-                 |""".stripMargin,
-              Nil
-            )
-          )
+    val optionsOpt = Opts
+      .option[String](long = "options", short = "o", help = "Options to be passed along with the data")
+      .mapValidated(options => {
+        ModeRequestOptionsParser.parse(options) match {
+          case Left(error) =>
+            s"""Error parsing options: $options - $error""
+               |Please use the following pattern: <key1>=<value1>[;<key2=value2>]...""".stripMargin.invalidNel
+          case Right(value) => value.valid
+        }
       })
       .orNone
       .map({
-        case Some(inputType) => inputType
-        case None            => InputType.Json // default input type
-      })
-
-    val outputTypeOpt = Opts
-      .option[String](long = "out", help = "output type")
-      .mapValidated({
-        case "json"   => Valid(OutputType.Json)
-        case "pretty" => Valid(OutputType.PrettyText)
-        case "plain"  => Valid(OutputType.PlainText)
-        case x =>
-          Invalid(
-            NonEmptyList(
-              s"""Unknown output type: $x.
-                 |Available output types: json / pretty / plain.""".stripMargin,
-              Nil
-            )
-          )
-      })
-      .orNone
-      .map({
-        case Some(outputType) => outputType
-        case None             => OutputType.Json // default output type
+        case Some(options) => options
+        case None          => Map[String, String]()
       })
 
     val dataOpt = Opts.arguments[String]("data").orEmpty
@@ -148,36 +113,16 @@ object ArgsParser {
       configOpt,
       verbosityOpt,
       serviceSubCommand
-    ).mapN((userHome, configPaths, verbosity, listeners) => {
-      Startup.Context.Service(userHome, configPaths, verbosity, listeners)
-    })
+    ).mapN(Startup.Context.Service.apply)
 
     val normalOpt = (
       userHomeOpt,
       configOpt,
       verbosityOpt,
       callsOpt,
-      inputTypeOpt,
-      outputTypeOpt,
-      dataOpt
-    ).mapN((userHome, configPaths, verbosity, call, inputType, outputType, params) => {
-      // TODO: this should be refactored
-      Startup.Context.Cli(
-        userHome,
-        configPaths,
-        verbosity,
-        call,
-        inputType match {
-          case InputType.Json =>
-            Startup.Context.Cli.Data.Json(params match {
-              case Nil    => "{}"
-              case x :: _ => x
-            })
-        },
-        inputType,
-        outputType
-      )
-    })
+      dataOpt,
+      optionsOpt
+    ).mapN(Startup.Context.Cli.apply)
 
     Command(BuildInfo.name, "Grafex", helpFlag = false)(
       List(

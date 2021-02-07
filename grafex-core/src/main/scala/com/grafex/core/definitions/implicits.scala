@@ -1,18 +1,18 @@
 package com.grafex.core
 package definitions
 
-import com.grafex.core.definitions.annotations.description
-import com.grafex.core.definitions.property._
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.{ ToTraversable, Zip }
 import shapeless.ops.record.Keys
 import shapeless.{ :+:, ::, Annotations, CNil, Coproduct, HList, HNil, LabelledGeneric, Lazy, Witness }
+import com.grafex.core.definitions.annotations.description
+import com.grafex.core.definitions.property._
 
 import scala.reflect.runtime.{ universe => un }
 
 object implicits {
 
-  trait all extends FieldEncoders with PropertyMetadataEncoders
+  object all extends FieldEncoders with PropertyMetadataEncoders
 
   trait FieldEncoders
       extends PrimitiveFieldEncoders

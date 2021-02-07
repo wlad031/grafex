@@ -1,22 +1,24 @@
 package com.grafex.core
 package conversion
 
+import cats.syntax.either._
 import com.grafex.core.definitions.mode
-import ModeError.UnknownAction
-import com.grafex.core.ModeError
 
 trait ModeRequestDecoder[REQ] {
-  def apply(req: ModeRequest): Either[ModeError, REQ]
+  def apply(req: ModeRequest): EitherE[REQ]
 }
 
 object ModeRequestDecoder {
-  def instance[REQ](pf: PartialFunction[ModeRequest, Either[ModeError, REQ]]): ModeRequestDecoder[REQ] =
+  def instance[REQ](pf: PartialFunction[ModeRequest, EitherE[REQ]]): ModeRequestDecoder[REQ] =
     (req: ModeRequest) => pf.applyOrElse(req, (req: ModeRequest) => Left(UnknownAction(req.calls.head.actionId)))
 
-  def instanceF[REQ](implicit modeDefinition: mode.BasicDefinition): ModeRequestDecoder[REQ] = { (req: ModeRequest) =>
+  def instanceF[M, MInput](
+    implicit
+    modeDefinition: mode.BasicDefinition[M, MInput, _]
+  ): ModeRequestDecoder[MInput] = { (req: ModeRequest) =>
     modeDefinition.actions
-      .find(_.actionDefinition.suitsFor(req.calls.head.actionId))
-      .toRight(UnknownAction(req.calls.head.actionId): ModeError)
-      .flatMap(r => r.actionRequestDecoder.decode(req).map(_.asInstanceOf[REQ])) // FIXME: unsafe operation
+      .map(_.actionRequestDecoder)
+      .reduce(_ orElse _)
+      .applyOrElse(req, (r: ModeRequest) => InvalidRequest.UnsupportedAction(r.calls.head.actionId.name).asLeft)
   }
 }

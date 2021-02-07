@@ -3,21 +3,20 @@ package com.grafex.core
 import cats.data.{ EitherT, NonEmptyList }
 import cats.effect.IO
 import cats.syntax.either._
-import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
 import com.grafex.core.Mode._
-import ModeError.{ InvalidRequest, RequestFormatError }
-import com.grafex.core.ModeError
+import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
+import org.scalatest
 import org.scalatest.funsuite.AnyFunSuite
 
 class ModeTest extends AnyFunSuite with ModeTestSuite {
 
   test("Basic mode should return ByModeNameOrVersion error for wrong mode name") {
-    createMode("mode")()()
+    createMode("mode")()
       .apply(
-        ModeRequest.Json(
+        ModeRequest(
           NonEmptyList(
             Call.Full(
               definitions.mode.Id("other-mode", "1"),
@@ -25,11 +24,10 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
             ),
             Nil
           ),
-          OutputType.Json,
-          parse("""
+          List("""
             |{
             |  "a": 1
-            |}""".stripMargin).getOrElse(???) // FIXME
+            |}""".stripMargin)
         )
       )
       .value
@@ -41,9 +39,9 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
   }
 
   test("Basic mode should return ByModeNameOrVersion error for wrong mode version") {
-    createMode("mode", "1")()()
+    createMode("mode", "1")()
       .apply(
-        ModeRequest.Json(
+        ModeRequest(
           NonEmptyList(
             Call.Full(
               definitions.mode.Id("other-mode", "2"),
@@ -51,11 +49,10 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
             ),
             Nil
           ),
-          OutputType.Json,
-          parse("""
+          List("""
             |{
             |  "a": 1
-            |}""".stripMargin).getOrElse(???) // FIXME
+            |}""".stripMargin)
         )
       )
       .value
@@ -67,9 +64,9 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
   }
 
   test("Basic mode should return success result for appropriate single call") {
-    createMode("test-mode")()()
+    createMode("test-mode")()
       .apply(
-        ModeRequest.Json(
+        ModeRequest(
           NonEmptyList(
             Call.Full(
               definitions.mode.Id("test-mode", "1"),
@@ -77,49 +74,51 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
             ),
             Nil
           ),
-          OutputType.Json,
-          parse("""
+          List("""
             |{
             |  "a": 1
-            |}""".stripMargin).getOrElse(???) // FIXME
+            |}""".stripMargin)
         )
       )
       .value
       .unsafeRunSync() match {
-      case Left(_)                        => fail("Got error response")
-      case Right(ModeResponse.Json(body)) => assert(parse("""{"a":"test-mode-1"}""").getOrElse(???) === body.asJson)
-      case Right(value)                   => fail(s"Got invalid response: $value")
+      case Left(_)                         => fail("Got error response")
+      case Right(ModeResponse.Ok(body, _)) => assertStringJson("""{"a":"test-mode-1"}""", body)
+      case Right(value)                    => fail(s"Got invalid response: $value")
     }
   }
 
   test("OrElse mode should choose requested mode from 2 basic modes") {
-    val left = createMode("left-mode")()()
-    val right = createMode("right-mode")()()
+    val left = createMode("left-mode")()
+    val right = createMode("right-mode")()
     val leftOrRight = left orElse right
     val request = (mode: String) =>
-      ModeRequest.Json(
+      ModeRequest(
         NonEmptyList(
           Call.Full(definitions.mode.Id(mode, "1"), definitions.action.Id("test-action")),
           Nil
         ),
-        OutputType.Json,
-        parse("""
+        List("""
         |{
         |  "a": 1
-        |}""".stripMargin).getOrElse(???) // FIXME
+        |}""".stripMargin)
       )
 
     leftOrRight.apply(request("left-mode")).value.unsafeRunSync() match {
-      case Left(_)                        => fail("Got error response")
-      case Right(ModeResponse.Json(body)) => assert(parse("""{"a":"left-mode-1"}""").getOrElse(???) === body.asJson)
-      case Right(value)                   => fail(s"Got invalid response: $value")
+      case Left(_)                         => fail("Got error response")
+      case Right(ModeResponse.Ok(body, _)) => assertStringJson("""{"a":"left-mode-1"}""", body)
+      case Right(value)                    => fail(s"Got invalid response: $value")
     }
 
     leftOrRight.apply(request("right-mode")).value.unsafeRunSync() match {
-      case Left(_)                        => fail("Got error response")
-      case Right(ModeResponse.Json(body)) => assert(parse("""{"a":"right-mode-1"}""").getOrElse(???) === body.asJson)
-      case Right(value)                   => fail(s"Got invalid response: $value")
+      case Left(_)                         => fail("Got error response")
+      case Right(ModeResponse.Ok(body, _)) => assertStringJson("""{"a":"right-mode-1"}""", body)
+      case Right(value)                    => fail(s"Got invalid response: $value")
     }
+  }
+
+  def assertStringJson(expected: String, actual: String): scalatest.Assertion = {
+    assert(unsafe(parse(expected)) === unsafe(parse(actual)))
   }
 
   case class Req(a: Int)
@@ -128,31 +127,27 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
   val reqJsonDecoder = implicitly[io.circe.Decoder[Req]]
 
   implicit val cReq: ModeRequestDecoder[Req] = ModeRequestDecoder.instance {
-    case ar: ModeRequest.Json => reqJsonDecoder.decodeJson(ar.body).leftMap(e => RequestFormatError(ar, e))
+    case ar: ModeRequest =>
+      reqJsonDecoder.decodeJson(unsafe(parse(ar.data.head))).leftMap(e => InvalidRequest.InvalidTypeOfJson(e))
   }
 
-  implicit val cRes: ModeResponseEncoder[Res] = ModeResponseEncoder.instance { (res: Res, _: ModeRequest) =>
+  implicit val cRes: ModeResponseEncoder[Res] = ModeResponseEncoder.instance { (_: ModeRequest, res: Res) =>
     {
       res match {
-        case x => Right(ModeResponse.Json(x.asJson))
+        case x => Right(ModeResponse.Ok(x.asJson.spaces2))
       }
     }
   }
 
   implicit val testRunContext: RunContext[IO] = createTestRunContext[IO].unsafeRunSync()
 
-  def createMode(modeName: String, modeVersion: String = "1")(
-    supportedInputTypes: Set[InputType] = Set(InputType.Json),
-    supportedOutputTypes: Set[OutputType] = Set(OutputType.Json)
-  )(actionName: String = "test-action"): Mode[IO] =
-    Mode.instance[IO, Req, Res](
-      definitions.mode.Definition(
+  def createMode(modeName: String, modeVersion: String = "1")(actionName: String = "test-action"): Mode[IO] =
+    Mode.instance[IO, Any, Req, Res](
+      definitions.mode.Definition[Any, Req, Res](
         modeName,
         modeVersion,
-        supportedInputTypes,
-        supportedOutputTypes,
         Set()
       ),
-      (req: Req) => EitherT.rightT[IO, ModeError](Res(s"$modeName-${req.a.toString}"))
+      (req: Req) => EitherT.rightT[IO, GrafexError](Res(s"$modeName-${req.a.toString}"))
     )
 }

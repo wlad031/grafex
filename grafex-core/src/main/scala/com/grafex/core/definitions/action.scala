@@ -5,19 +5,45 @@ object action {
 
   final case class Id(name: String)
 
+  // TODO: improve this doc
+  /**
+    *
+    * @param propertyDefinition
+    * @tparam A the type this schema belongs to
+    */
   final case class InputSchema[A](propertyDefinition: property.Definition)
+
+  // TODO: improve this doc
+  /**
+    *
+    * @param propertyDefinition
+    * @tparam A the type this schema belongs to
+    */
   final case class OutputSchema[A](propertyDefinition: property.Definition)
 
-  final case class Definition[A, IS, OS](
+  // TODO: improve this doc
+  /**
+    *
+    * @param id
+    * @param input
+    * @param output
+    * @param description
+    * @tparam A the type of action
+    * @tparam Input the type of input schema
+    * @tparam Output the type of output schema
+    */
+  final case class Definition[A, Input, Output](
     id: Id,
-    input: InputSchema[IS],
-    output: OutputSchema[OS],
+    input: InputSchema[Input],
+    output: OutputSchema[Output],
     description: Option[String]
   ) {
     def suitsFor(id: Id): Boolean = this.id == id
   }
 
   object Definition {
-    def instance[A, IS, OS](implicit ev: Definition[A, IS, OS]): Definition[A, IS, OS] = ev
+
+    /** Summoner for [[Definition]] objects. */
+    def instance[A, Input, Output](implicit ev: Definition[A, Input, Output]): Definition[A, Input, Output] = ev
   }
 }

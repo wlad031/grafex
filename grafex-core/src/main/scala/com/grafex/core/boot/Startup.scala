@@ -2,7 +2,6 @@ package com.grafex.core
 package boot
 
 import cats.data.NonEmptyList
-import com.grafex.core.Mode
 
 import java.nio.file.Path
 
@@ -45,29 +44,21 @@ object Startup {
   /** Contains implementations of [[Context]]. */
   object Context {
 
-    case class Service(
+    final case class Service(
       override val userHome: Path,
       override val configPaths: List[Path],
       override val verbosity: Verbosity,
       listeners: NonEmptyList[Listener]
     ) extends Context
 
-    case class Cli(
+    final case class Cli(
       override val userHome: Path,
       override val configPaths: List[Path],
       override val verbosity: Verbosity,
       calls: NonEmptyList[Mode.Call],
-      params: Cli.Data,
-      inputType: InputType,
-      outputType: OutputType
+      data: List[String],
+      options: Map[String, String]
     ) extends Context
-
-    object Cli {
-      sealed trait Data
-      object Data {
-        case class Json(json: String) extends Data
-      }
-    }
   }
 
   sealed trait Listener
@@ -77,16 +68,21 @@ object Startup {
   }
 
   sealed trait Verbosity {
+    protected def level: Int
+
+    def > (that: Verbosity): Boolean = this.level > that.level
+    def >= (that: Verbosity): Boolean = this.level >= that.level
+
     def asLoggerName: String = this match {
-      case Verbosity.Normal()  => "grafex"
-      case Verbosity.Verbose() => "grafex-v"
-      case Verbosity.Debug()   => "grafex-d"
+      case Verbosity.Normal  => "grafex"
+      case Verbosity.Verbose => "grafex-v"
+      case Verbosity.Debug   => "grafex-d"
     }
   }
 
   object Verbosity {
-    case class Normal() extends Verbosity
-    case class Verbose() extends Verbosity
-    case class Debug() extends Verbosity
+    final case object Normal extends Verbosity { override val level: Int = 1 }
+    final case object Verbose extends Verbosity { override val level: Int = 2 }
+    final case object Debug extends Verbosity { override val level: Int = 3 }
   }
 }

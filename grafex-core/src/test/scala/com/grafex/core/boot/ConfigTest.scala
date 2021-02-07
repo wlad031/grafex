@@ -95,6 +95,6 @@ class ConfigTest extends AnyFunSuite {
   }
 
   def createContext(configPaths: List[Path], userHome: Path = Paths.get("/tmp/grafex")): Startup.Context = {
-    Startup.Context.Cli(userHome, configPaths, null, null, null, null, null)
+    Startup.Context.Cli(userHome, configPaths, null, null, null, null)
   }
 }

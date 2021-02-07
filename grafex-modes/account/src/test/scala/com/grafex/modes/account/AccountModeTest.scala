@@ -7,9 +7,9 @@ import cats.instances.either._
 import cats.syntax.bifunctor._
 import com.grafex.core._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
-import com.grafex.core.ModeError
-import com.grafex.modes.describe.DescribeMode.UnknownModeError
+import com.grafex.modes.account.AccountMode.actions.CreateAccountAction
 import io.circe.generic.auto._
+import io.circe.parser.parse
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -18,12 +18,12 @@ class AccountModeTest extends AnyFunSuite with ModeTestSuite {
   test("Account mode should create an account") {
     val accountMode: AccountMode[IO] = AccountMode(graphMode).getOrElse(sys.error(""))
 
-    val res = accountMode.apply(AccountMode.actions.CreateAccountAction.Request("account-name")).value.unsafeRunSync()
+    val res = accountMode.apply(CreateAccountAction.Request("account-name")).value.unsafeRunSync()
 
     res match {
-      case Left(error)                                                 => fail(s"Unexpected error: $error")
-      case Right(AccountMode.actions.CreateAccountAction.Response(id)) => assert(id === "id=account-name")
-      case Right(x)                                                    => fail(s"Unexpected result: $x")
+      case Left(error)                                => fail(s"Unexpected error: $error")
+      case Right(CreateAccountAction.Response.Ok(id)) => assert(id === "id=account-name")
+      case Right(x)                                   => fail(s"Unexpected result: $x")
     }
   }
 
@@ -36,31 +36,29 @@ class AccountModeTest extends AnyFunSuite with ModeTestSuite {
   implicit val testRunContext: RunContext[IO] = createTestRunContext[IO].unsafeRunSync()
 
   implicit val enc: ModeResponseEncoder[TestGraphResponse] = ModeResponseEncoder.instance {
-    (res: TestGraphResponse, req: ModeRequest) =>
+    (req: ModeRequest, res: TestGraphResponse) =>
       res match {
-        case r: TestCreateNodeResponse => Right(ModeResponse.Json(r.asJson))
+        case r: TestCreateNodeResponse => Right(ModeResponse.Ok(r.asJson.spaces2))
       }
   }
 
   val resJsonDecoder = implicitly[io.circe.Decoder[TestCreateNodeRequest]]
 
   implicit val dec: ModeRequestDecoder[TestGraphRequest] = ModeRequestDecoder.instance {
-    case req if req.calls.head.actionId.name.toString == "node/create" =>
+    case req if req.calls.head.actionId.name == "node/create" =>
       resJsonDecoder
-        .decodeJson(req.asInstanceOf[ModeRequest.Json].body)
-        .leftMap(x => UnknownModeError(x.toString): ModeError)
+        .decodeJson(unsafe(parse(req.asInstanceOf[ModeRequest].data.head)))
+        .leftMap(x => InvalidRequest.UnsupportedAction(x.toString))
   }
 
   val graphMode = Mode.instance(
-    definitions.mode.Definition(
+    definitions.mode.Definition[Any, TestGraphRequest, TestGraphResponse](
       "graph",
       "1",
-      Set(InputType.Json),
-      Set(OutputType.Json),
       Set()
     ),
     new Mode.MFunction[IO, TestGraphRequest, TestGraphResponse] {
-      override def apply(request: TestGraphRequest): EitherT[IO, ModeError, TestGraphResponse] = {
+      override def apply(request: TestGraphRequest): EitherET[IO, TestGraphResponse] = {
         request match {
           case TestCreateNodeRequest(label, metadata) =>
             EitherT.rightT(TestCreateNodeResponse(s"""id=${metadata("name")}"""))

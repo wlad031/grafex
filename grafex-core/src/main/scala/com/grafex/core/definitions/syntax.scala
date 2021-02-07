@@ -6,8 +6,11 @@ import com.grafex.core.definitions.mode.DecodableActionDefinition
 
 object syntax {
 
-  implicit class ActionDefinitionOps[A, IS, OS](actionDefinition: action.Definition[A, IS, OS]) {
-    def asDecodable(implicit actionRequestDecoder: ActionRequestDecoder[IS]): DecodableActionDefinition[A, IS, OS] = {
+  implicit class ActionDefinitionOps[A, AIn, AOut](actionDefinition: action.Definition[A, AIn, AOut]) {
+
+    def asDecodable(
+      implicit actionRequestDecoder: ActionRequestDecoder[AIn]
+    ): DecodableActionDefinition[A, AIn, AOut] = {
       DecodableActionDefinition(actionDefinition, actionRequestDecoder)
     }
   }
