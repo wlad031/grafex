@@ -4,8 +4,6 @@ package listeners
 import cats.data.EitherT
 import cats.effect.{ ConcurrentEffect, ExitCode, IO, Resource, Timer }
 import com.grafex.core.boot.Startup
-import com.grafex.core.GrafexError
-import com.grafex.core.ModeResponse
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT
@@ -38,15 +36,17 @@ object WebListener {
         for {
           body <- req.as[String]
           res <- modeContainer(
-            ModeRequest.web(
-              Mode.Call
-                .Full(definitions.mode.Id(mode, modeVersion), definitions.action.Id(action)),
-              body
-            )
+            null
+//            ModeRequest.web(
+//              Mode.Call
+//                .Full(definitions.mode.Id(mode, modeVersion), definitions.action.Id(action)),
+//              body
+//            )
           ).value.flatMap({
-            case Left(err)                     => BadRequest(err.toString)
-            case Right(ModeResponse.Json(res)) => Ok(res.spaces2)
-            case Right(value)                  => BadRequest("Invalid response type, sorry") // FIXME
+            case Left(err)                                   => BadRequest(err.toString)
+            case Right(ModeResponse.Ok(data, options))       => Ok(data)
+            case Right(ModeResponse.Error(data, _, options)) => BadRequest(data)
+//            case Right(ModeResponse.Error(data, _, options)) => InternalServerError(data)
           })
         } yield res
     }

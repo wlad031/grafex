@@ -1,5 +1,6 @@
 package com.grafex
 
+import cats.data.EitherT
 import cats.effect.{ Clock, ExitCode, IO }
 import io.chrisdavenport.log4cats.Logger
 
@@ -7,8 +8,17 @@ import java.io.PrintStream
 
 package object core {
 
-  def printWithSuccess(message: String): IO[ExitCode] = printWithExitCode(System.out)(message)(ExitCode.Success)
-  def printWithExitCode(printStream: PrintStream)(message: String)(exitCode: ExitCode): IO[ExitCode] =
+  type EitherE[+A] = Either[GrafexError, A]
+  type EitherET[F[_], A] = EitherT[F, GrafexError, A]
+
+  def unsafe[A, B](either: => Either[A, B]): B = either match {
+    case Left(error)  => sys.error(s"Unexpected error: $error")
+    case Right(value) => value
+  }
+
+  def printWithSuccess(message: => String): IO[ExitCode] = printWithExitCode(System.out)(message)(ExitCode.Success)
+  def printWithError(message: => String): IO[ExitCode] = printWithExitCode(System.err)(message)(ExitCode.Error)
+  def printWithExitCode(printStream: PrintStream)(message: => String)(exitCode: ExitCode): IO[ExitCode] =
     IO {
       printStream.println(message)
       exitCode
@@ -50,51 +60,5 @@ package object core {
   trait RunContext[F[_]] {
     val clock: Clock[F]
     val logger: Logger[F]
-  }
-
-  sealed trait InputType {
-    override def toString: String =
-      this match {
-        case InputType.Json => "json"
-      }
-  }
-
-  /** Factory for [[InputType]].
-    * Also, contains all the implementations of [[InputType]].
-    */
-  object InputType {
-    def fromString(s: String): Option[InputType] =
-      s match {
-        case "json" => Some(Json)
-        case _      => None
-      }
-
-    case object Json extends InputType
-  }
-
-  sealed trait OutputType {
-    override def toString: String =
-      this match {
-        case OutputType.Json       => "json"
-        case OutputType.PlainText  => "plain"
-        case OutputType.PrettyText => "pretty"
-      }
-  }
-
-  /** Factory for [[OutputType]].
-    * Also, contains all the implementations of [[OutputType]].
-    */
-  object OutputType {
-    def fromString(s: String): Option[OutputType] =
-      s match {
-        case "json"   => Some(Json)
-        case "plain"  => Some(PlainText)
-        case "pretty" => Some(PrettyText)
-        case _        => None
-      }
-
-    case object Json extends OutputType
-    case object PlainText extends OutputType
-    case object PrettyText extends OutputType
   }
 }

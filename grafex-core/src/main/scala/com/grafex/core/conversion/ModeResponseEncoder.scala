@@ -1,15 +1,11 @@
 package com.grafex.core
 package conversion
 
-import com.grafex.core.ModeError
-
-trait ModeResponseEncoder[RES] {
-  def apply(res: RES)(req: ModeRequest): Either[ModeError, ModeResponse]
-}
+trait ModeResponseEncoder[A] extends (((ModeRequest, A)) => EitherE[ModeResponse])
 
 object ModeResponseEncoder {
-  def instance[RES](f: (RES, ModeRequest) => Either[ModeError, ModeResponse]): ModeResponseEncoder[RES] =
+  def instance[RES](f: (ModeRequest, RES) => EitherE[ModeResponse]): ModeResponseEncoder[RES] =
     new ModeResponseEncoder[RES] {
-      override def apply(res: RES)(req: ModeRequest): Either[ModeError, ModeResponse] = f(res, req)
+      override def apply(v1: (ModeRequest, RES)): EitherE[ModeResponse] = f(v1._1, v1._2)
     }
 }

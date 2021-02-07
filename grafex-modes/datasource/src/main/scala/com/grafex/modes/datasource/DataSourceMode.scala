@@ -3,8 +3,10 @@ package datasource
 
 import cats.data.EitherT
 import cats.effect.IO
-import com.grafex.core.{ ModeError, _ }
-import com.grafex.core.conversion.semiauto._
+import cats.syntax.either._
+import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
+import com.grafex.core._
+import com.grafex.core.conversion.generic.semiauto._
 import com.grafex.core.conversion.{
   ActionRequestDecoder,
   ActionResponseEncoder,
@@ -13,62 +15,58 @@ import com.grafex.core.conversion.{
 }
 import com.grafex.core.definitions.annotations.{ actionId, modeId }
 import com.grafex.core.definitions.generic.auto._
+import com.grafex.core.definitions.implicits.all._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
-import com.grafex.core.Mode.{ MFunction, ModeInitializationError }
-import com.grafex.modes.datasource.DataSourceMode.actions
+import com.grafex.modes.datasource.DataSourceMode._
 import com.grafex.modes.datasource.DataSourceMode.actions.GetDataSourceMeta
 import io.circe.generic.auto._
 
 class DataSourceMode private (metaDataSource: MetaDataSource[IO])(implicit runContext: RunContext[IO])
-    extends MFunction[IO, DataSourceMode.Request, DataSourceMode.Response] {
+    extends MFunction[IO, Request, Response] {
 
   override def apply(
-    request: DataSourceMode.Request
-  ): EitherT[IO, ModeError, DataSourceMode.Response] = {
+    request: Request
+  ): EitherET[IO, Response] = {
     implicit val mds: MetaDataSource[IO] = metaDataSource
-    request match {
-      case req: actions.GetDataSourceMeta.Request => actions.GetDataSourceMeta(req)
-    }
+    (request match {
+      case req: GetDataSourceMeta.Request => GetDataSourceMeta(req)
+    }).map(res => res: Response)
   }
 }
 
 @modeId(name = "data-source", version = "1")
 object DataSourceMode {
-  implicit val definition: mode.BasicDefinition = mode.Definition.instance[this.type](
+  implicit val definition: mode.BasicDefinition[this.type, Request, Response] = mode.Definition.instance(
     Set(
-      action.Definition
-        .instance[GetDataSourceMeta.type, GetDataSourceMeta.Request, GetDataSourceMeta.Response]
-        .asDecodable
+      GetDataSourceMeta.definition.asDecodable
     )
   )
 
   def apply(
     metaDataSource: MetaDataSource[IO]
   )(implicit rc: RunContext[IO]): Either[ModeInitializationError, DataSourceMode] = {
-    Right(new DataSourceMode(metaDataSource))
+    new DataSourceMode(metaDataSource).asRight
   }
 
   sealed trait Request
   sealed trait Response
-  sealed trait Error extends ModeError
-
-  case class DataSourceError() extends Error
 
   object actions {
 
     @actionId("get")
     object GetDataSourceMeta {
+      implicit val definition: action.Definition[this.type, Request, Response] = deriveActionDefinition
 
       def apply(request: Request)(
         implicit metaDataSource: MetaDataSource[IO]
-      ): EitherT[IO, ModeError, DataSourceMode.Response] = {
+      ): EitherET[IO, Response] = {
         // TODO: reimplement in a safe way
         metaDataSource.getDataSourceById(request.id).value.unsafeRunSync() match {
-          case Left(error) => EitherT.leftT(DataSourceError())
+          case Left(error) => ???
           case Right(value) =>
             EitherT.rightT(
-              Response(
+              Response.Ok(
                 DSConnection(
                   id = value.id.s,
                   `type` = value match {
@@ -80,15 +78,28 @@ object DataSourceMode {
         }
       }
 
-      case class Request(id: String) extends DataSourceMode.Request
-      case class Response(connection: DSConnection) extends DataSourceMode.Response
-      case class DSConnection(id: String, `type`: String)
+      final case class Request(id: String) extends DataSourceMode.Request
+      object Request {
+        implicit val dec: ActionRequestDecoder[Request] = deriveJsonActionRequestDecoder[Request].asDefault
+      }
 
-      implicit val enc: ActionResponseEncoder[Response] = deriveOnlyJsonActionResponseEncoder
-      implicit val dec: ActionRequestDecoder[Request] = deriveOnlyJsonActionRequestDecoder[Request]
+      sealed trait Response extends DataSourceMode.Response
+      object Response {
+        final case class Ok(connection: DSConnection) extends Response
+        object Ok {
+          implicit val enc: ActionResponseEncoder[Ok] = deriveJsonActionResponseEncoder[Ok].asDefault
+        }
+
+        final case class Error() extends Response
+        object Error {
+          implicit val enc: ActionResponseEncoder[Error] = deriveJsonActionResponseEncoder[Error].asDefault
+        }
+      }
+
+      final case class DSConnection(id: String, `type`: String)
     }
   }
 
   implicit val enc: ModeResponseEncoder[Response] = deriveModeResponseEncoder
-  implicit val dec: ModeRequestDecoder[Request] = ModeRequestDecoder.instanceF
+  implicit val dec: ModeRequestDecoder[Request] = deriveModeRequestDecoder
 }

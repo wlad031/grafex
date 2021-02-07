@@ -84,7 +84,7 @@ lazy val `graph-mode` = project.in(file("grafex-modes/graph")).dependsOn(core)
 // FIXME: should not depend on describe mode
 lazy val `account-mode` = project
   .in(file("grafex-modes/account"))
-  .dependsOn(core % "test->test;compile->compile", `graph-mode`, `describe-mode`)
+  .dependsOn(core % "test->test;compile->compile", `graph-mode`)
 lazy val `datasource-mode` = project.in(file("grafex-modes/datasource")).dependsOn(core)
 
 lazy val modes = project

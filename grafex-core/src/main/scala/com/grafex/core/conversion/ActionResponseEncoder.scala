@@ -1,17 +1,18 @@
 package com.grafex.core
 package conversion
 
-import ModeError.InvalidRequest
-import com.grafex.core.ModeError
-
-trait ActionResponseEncoder[RES] {
-  def encode(outputType: OutputType, res: RES): Either[ModeError, ModeResponse]
+trait ActionResponseEncoder[A] extends PartialFunction[(ModeRequest, A), EitherE[ModeResponse]] { self =>
+  def asDefault: ActionResponseEncoder[A] = new ActionResponseEncoder[A] {
+    override def isDefinedAt(x: (ModeRequest, A)): Boolean = true
+    override def apply(x: (ModeRequest, A)): EitherE[ModeResponse] = self.apply(x)
+  }
 }
 
 object ActionResponseEncoder {
-  def instance[RES](
-    pf: PartialFunction[OutputType, RES => Either[ModeError, ModeResponse]]
-  ): ActionResponseEncoder[RES] = { (out: OutputType, res: RES) =>
-    pf.applyOrElse(out, (out1: OutputType) => (_: RES) => Left(InvalidRequest.UnsupportedOutputType(out1)))(res)
-  }
+
+  def instance[A](pf: PartialFunction[(ModeRequest, A), EitherE[ModeResponse]]): ActionResponseEncoder[A] =
+    new ActionResponseEncoder[A] {
+      override def isDefinedAt(x: (ModeRequest, A)): Boolean = pf.isDefinedAt(x)
+      override def apply(v1: (ModeRequest, A)): EitherE[ModeResponse] = pf.apply(v1)
+    }
 }

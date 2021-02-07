@@ -2,12 +2,12 @@ package com.grafex.core
 package definitions
 package generic
 
+import shapeless.{ Annotation, Lazy }
 import com.grafex.core.definitions.action.{ InputSchema, OutputSchema }
 import com.grafex.core.definitions.annotations.{ actionId, description }
 import com.grafex.core.definitions.property._
-import shapeless.Annotation
 
-object semiauto extends implicits.all {
+object semiauto {
 
   def deriveInputSchema[A](
     implicit
@@ -19,15 +19,15 @@ object semiauto extends implicits.all {
     enc: FieldEncoder[A]
   ): OutputSchema[A] = OutputSchema(f("root", enc.encode, None)) // TODO: should it be "root" and "None"?
 
-  def deriveActionDefinition[A, IS : FieldEncoder, OS : FieldEncoder](
+  def deriveActionDefinition[A, Input, Output](
     implicit
-    is: action.InputSchema[IS],
-    os: action.OutputSchema[OS],
+    is: Lazy[action.InputSchema[Input]],
+    os: Lazy[action.OutputSchema[Output]],
     actionIdA: Annotation[actionId, A],
     descA: Annotation[Option[description], A]
-  ): action.Definition[A, IS, OS] = {
+  ): action.Definition[A, Input, Output] = {
     val id = actionIdA()
-    action.Definition(action.Id(id.name), is, os, descA().map(_.s))
+    action.Definition(action.Id(id.name), is.value, os.value, descA().map(_.s))
   }
 
   // TODO: refactor this function

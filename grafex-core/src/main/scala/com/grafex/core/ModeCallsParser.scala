@@ -25,7 +25,7 @@ import com.grafex.core.definitions._
   *   1. `mode1/action1>mode2/action2` - represents multi mode call.
   *
   * @example {{{
-  * import com.grafex.core.ModeCallsParser
+  * import com.grafex.core.ModeCallsParser.parse
   *
   * val latestCall: Right[NonEmptyList[Mode.Call]] = parse("modeName/actionName")
   * val versionedCall: Right[NonEmptyList[Mode.Call]] = parse("modeName.1.0.0/actionName")
