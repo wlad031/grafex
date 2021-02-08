@@ -13,6 +13,7 @@ import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.implicits.all._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
+import com.grafex.core.errors.InvalidRequest
 import com.grafex.modes.describe.DescribeMode._
 import com.grafex.modes.describe.DescribeMode.actions.{ GetModeDefinitionAction, ListModeKeysAction }
 import io.circe.generic.auto._

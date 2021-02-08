@@ -2,10 +2,10 @@ package com.grafex.core
 package boot
 
 import cats.data.NonEmptyList
-import cats.data.Validated.{ Invalid, Valid }
 import cats.syntax.all._
 import com.grafex.build.BuildInfo
 import com.grafex.core.boot.Startup.{ Listener, Verbosity }
+import com.grafex.core.errors.{ ArgsFastExit, ArgsParsingError, HelpRequest, VersionRequest }
 import com.monovore.decline.{ Command, Opts }
 
 import java.nio.file.Path
@@ -20,10 +20,10 @@ object ArgsParser {
     */
   def parse(args: List[String]): Either[ArgsFastExit, Startup.Context] = {
     command.parse(args, sys.env) match {
-      case Left(help)                      => Left(ArgsParsingError(help.toString()))
-      case Right(_: Startup.Help)          => Left(HelpRequest(command.showHelp))
-      case Right(Startup.Version(version)) => Left(VersionRequest(version))
-      case Right(ctx: Startup.Context)     => Right(ctx)
+      case Left(help)                      => ArgsParsingError(help.toString()).asLeft
+      case Right(_: Startup.Help)          => HelpRequest(command.showHelp).asLeft
+      case Right(Startup.Version(version)) => VersionRequest(version).asLeft
+      case Right(ctx: Startup.Context)     => ctx.asRight
     }
   }
 

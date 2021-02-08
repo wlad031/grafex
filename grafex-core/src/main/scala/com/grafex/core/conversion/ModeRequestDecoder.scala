@@ -3,6 +3,7 @@ package conversion
 
 import cats.syntax.either._
 import com.grafex.core.definitions.mode
+import com.grafex.core.errors.{ InvalidRequest, UnknownAction }
 
 trait ModeRequestDecoder[REQ] {
   def apply(req: ModeRequest): EitherE[REQ]

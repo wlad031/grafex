@@ -4,6 +4,7 @@ package listeners
 import cats.data.EitherT
 import cats.effect.{ ConcurrentEffect, ExitCode, IO, Resource, Timer }
 import com.grafex.core.boot.Startup
+import com.grafex.core.errors.GrafexError
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
 import org.http4s.implicits.http4sKleisliResponseSyntaxOptionT

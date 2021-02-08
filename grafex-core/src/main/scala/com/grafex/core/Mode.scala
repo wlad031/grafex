@@ -7,6 +7,7 @@ import cats.syntax.either._
 import cats.syntax.semigroupk._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
 import com.grafex.core.definitions._
+import com.grafex.core.errors.{ GrafexError, InvalidRequest }
 
 /** Represents any possible "mode".
   *
