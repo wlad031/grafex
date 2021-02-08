@@ -7,21 +7,22 @@ import com.grafex.core.boot.Config.GrafexConfiguration
 import com.grafex.core.boot.Startup.{ Listener, Verbosity }
 import com.grafex.core.boot.{ ArgsParser, Config, Startup }
 import com.grafex.core.definitions.mode
+import com.grafex.core.errors.{ ArgsParsingError, GrafexError, HelpRequest, VersionRequest }
 import com.grafex.core.graph.GraphDataSource
 import com.grafex.core.graph.neo4j.Neo4JGraphDataSource
 import com.grafex.core.implicits._
 import com.grafex.core.internal.neo4j.{ logging => Neo4JLogging }
 import com.grafex.core.listeners.{ SocketListener, WebListener }
-import com.grafex.core.{ ArgsParsingError, VersionRequest, _ }
+import com.grafex.core._
 import com.grafex.modes.account.AccountMode
 import com.grafex.modes.datasource.DataSourceMode
+import com.grafex.modes.describe.DescribeMode
 import com.grafex.modes.graph.GraphMode
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import neotypes.GraphDatabase
 import neotypes.cats.effect.implicits._
 import org.neo4j.driver.{ AuthTokens, Config => Neo4JConfig }
-import com.grafex.modes.describe.DescribeMode
 
 object Main extends IOApp {
 

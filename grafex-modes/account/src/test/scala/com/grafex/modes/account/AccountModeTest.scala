@@ -7,6 +7,7 @@ import cats.instances.either._
 import cats.syntax.bifunctor._
 import com.grafex.core._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
+import com.grafex.core.errors.InvalidRequest
 import com.grafex.modes.account.AccountMode.actions.CreateAccountAction
 import io.circe.generic.auto._
 import io.circe.parser.parse

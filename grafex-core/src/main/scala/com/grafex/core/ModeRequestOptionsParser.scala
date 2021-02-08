@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.data.Validated.Valid
 import cats.syntax.either._
 import cats.syntax.validated._
+import com.grafex.core.errors.GrafexError
 
 /** Used for parsing strings representing request options into maps with string keys and string values.
   *

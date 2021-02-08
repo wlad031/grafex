@@ -20,6 +20,7 @@ import com.grafex.core.definitions.generic.auto._
 import com.grafex.core.definitions.implicits.all._
 import com.grafex.core.definitions.syntax.ActionDefinitionOps
 import com.grafex.core.definitions.{ action, mode }
+import com.grafex.core.errors.{ GrafexError, ResponseFormatError }
 import com.grafex.modes.account.AccountMode._
 import com.grafex.modes.account.AccountMode.actions.{ CreateAccountAction, GetAccountDetailsAction }
 import io.circe.generic.auto._

@@ -4,6 +4,7 @@ package boot
 import cats.data.EitherT
 import cats.effect.IO
 import cats.implicits.toBifunctorOps
+import com.grafex.core.errors.GrafexError
 import com.typesafe.config.{ ConfigFactory, ConfigParseOptions, Config => TypesafeConfig }
 import io.circe.Json
 import pureconfig.ConfigReader.Result

@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.syntax.either._
 import com.grafex.core.Mode._
 import com.grafex.core.conversion.{ ModeRequestDecoder, ModeResponseEncoder }
+import com.grafex.core.errors.{ GrafexError, InvalidRequest }
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax.EncoderOps

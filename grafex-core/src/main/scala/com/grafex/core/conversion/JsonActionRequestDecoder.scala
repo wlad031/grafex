@@ -4,6 +4,7 @@ package conversion
 import shapeless.Lazy
 import cats.instances.either._
 import cats.syntax.bifunctor._
+import com.grafex.core.errors.InvalidRequest
 
 trait JsonActionRequestDecoder[+AIn] extends ActionRequestDecoder[AIn]
 
