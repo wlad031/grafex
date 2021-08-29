@@ -27,7 +27,7 @@ object JsonActionRequestDecoder {
 
       override def apply(request: ModeRequest): EitherE[AIn] = {
         for {
-          bodyJson <- parse(request.data.headOption match {
+          bodyJson <- parse(request.body.headOption match {
             case Some(value) => value
             case None        => "{}"
           }).leftMap(e => InvalidRequest.InvalidJson(e))

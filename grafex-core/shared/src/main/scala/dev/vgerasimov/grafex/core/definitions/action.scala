@@ -2,6 +2,8 @@ package dev.vgerasimov.grafex
 package core
 package definitions
 
+import cats.data.NonEmptyList
+
 object action {
 
   final case class Id(name: String)
@@ -29,17 +31,24 @@ object action {
     * @param input
     * @param output
     * @param description
-    * @tparam A the type of action
-    * @tparam Input the type of input schema
-    * @tparam Output the type of output schema
+    * @tparam A the action type
+    * @tparam AIn the type of input schema
+    * @tparam AOut the type of output schema
     */
-  final case class Definition[A, Input, Output](
-    id: Id,
-    input: InputSchema[Input],
-    output: OutputSchema[Output],
+  final case class Definition[A, AIn, AOut](
+    name: String,
+    path: Path,
+    input: InputSchema[AIn],
+    output: OutputSchema[AOut],
     description: Option[String]
   ) {
-    def suitsFor(id: Id): Boolean = this.id == id
+    def suitsFor(requestPath: RequestPath): Option[Map[String, String]] = {
+      def iter(path: Path, req: RequestPath, parsedParams: Map[String, String]) = {
+        (path, req) match {
+          case ((NonEmptyList(pathHead, pathTail)))
+        }
+      }
+    }
   }
 
   object Definition {

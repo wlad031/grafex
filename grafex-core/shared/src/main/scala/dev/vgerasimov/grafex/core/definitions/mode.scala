@@ -5,7 +5,7 @@ package definitions
 import shapeless.Annotation
 import dev.vgerasimov.grafex.core.Mode.Call
 import dev.vgerasimov.grafex.core.conversion.ActionRequestDecoder
-import dev.vgerasimov.grafex.core.definitions.annotations.{ description, modeId }
+import dev.vgerasimov.grafex.core.definitions.annotations.modeId
 
 object mode {
   final case class Name(name: String)
@@ -23,9 +23,18 @@ object mode {
   }
 
   // TODO: try to find out how not to mix definitions and decoders
-  final case class DecodableActionDefinition[A, Input, Output](
-    actionDefinition: action.Definition[A, Input, Output],
-    actionRequestDecoder: ActionRequestDecoder[Input]
+
+  /**
+    *
+    * @param actionDefinition
+    * @param actionRequestDecoder
+    * @tparam A the action type
+    * @tparam AIn the type of action input
+    * @tparam AOut the type of action output
+    */
+  final case class DecodableActionDefinition[A, AIn, AOut](
+    actionDefinition: action.Definition[A, AIn, AOut],
+    actionRequestDecoder: ActionRequestDecoder[AIn]
   )
 
   object Definition {
@@ -34,7 +43,7 @@ object mode {
       actionDefinitions: Set[DecodableActionDefinition[_, _ <: MIn, _ <: MOut]]
     )(
       implicit
-      modeIdA: Annotation[modeId, M],
+      modeIdA: Annotation[modeId, M]
 //      descA: Annotation[Option[description], M]
     ): mode.BasicDefinition[M, MIn, MOut] = {
       val id = modeIdA()
@@ -42,7 +51,7 @@ object mode {
         id.name,
         id.version,
         actionDefinitions,
-        None//descA().map(_.s)
+        None //descA().map(_.s)
       )
     }
 
@@ -60,6 +69,16 @@ object mode {
     }
   }
 
+  /**
+    *
+    * @param id
+    * @param description
+    * @param actions
+    * @param isLatest
+    * @tparam M the mode type
+    * @tparam MIn the type of mode input
+    * @tparam MOut the type of mode output
+    */
   final case class BasicDefinition[M, MIn, MOut](
     override val id: Id,
     description: Option[String],

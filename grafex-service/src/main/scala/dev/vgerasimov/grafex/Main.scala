@@ -75,20 +75,20 @@ object Main extends IOApp {
     buildGraphDataSource(config).evalMap { graphDataSource =>
       IO {
         for {
-          dataSourceMode <- Mode.instance(DataSourceMode.definition.toLatest, DataSourceMode(metaDataSource))
-          graphMode      <- Mode.instance(GraphMode.definition.toLatest, GraphMode(graphDataSource))
-          accountMode    <- Mode.instance(AccountMode.definition.toLatest, AccountMode(graphMode))
+//          dataSourceMode <- Mode.instance(DataSourceMode.definition.toLatest, DataSourceMode(metaDataSource))
+//          graphMode      <- Mode.instance(GraphMode.definition.toLatest, GraphMode(graphDataSource))
+//          accountMode    <- Mode.instance(AccountMode.definition.toLatest, AccountMode(graphMode))
           modes <- List(
-            dataSourceMode,
-            graphMode,
-            accountMode
+//            dataSourceMode,
+//            graphMode,
+//            accountMode
           ).asRight
 
           describeMode <- Mode.instance(
             DescribeMode.definition.toLatest,
             DescribeMode[IO](
               modes
-                .map(_.definition)
+//                .map(_.definition)
                 .map(_.asInstanceOf[mode.BasicDefinition[_, _, _]]) // FIXME: unsafe operation
             )
           )

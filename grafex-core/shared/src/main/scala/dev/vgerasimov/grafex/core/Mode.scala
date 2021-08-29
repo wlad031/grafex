@@ -165,42 +165,9 @@ object Mode {
 
   def dyn[F[_] : Sync : RunContext, A, B](f: MFunction[F, A, B]): DynamicMFunction[F, A, B] = { ??? }
 
-  /** Represents how mode and some of it's actions can be found and called. */
-  sealed trait Call {
-
-    /** Returns the [[definitions.action.Id]] of the call, which should be presented in any implementation of [[Call]]. */
-    def actionId: definitions.action.Id
-  }
-
-  /** Contains implementations of [[Call]]. */
-  object Call {
-
-    /** Represents the case when mode called using it's name, version and action name. */
-    final case class Full(
-      modeId: definitions.mode.Id,
-      override val actionId: definitions.action.Id
-    ) extends Call
-
-    /** Represents the case when mode called using it's name and action name.
-      * In this case the version which is marked as latest will be used.
-      */
-    final case class Latest(
-      modeName: String,
-      override val actionId: definitions.action.Id
-    ) extends Call
-
-    /** Creates new mode full call.
-      *
-      * @note It's just an alias for mode full call main constructor, added just for simplifying the creation of call.
-      */
-    def apply(modeId: definitions.mode.Id, actionId: definitions.action.Id): Mode.Call.Full = Full(modeId, actionId)
-
-    /** Creates new mode latest call.
-      *
-      * @note It's just an alias for mode latest call main constructor, added just for simplifying the creation of call.
-      */
-    def apply(modeName: String, actionId: definitions.action.Id): Mode.Call.Latest = Latest(modeName, actionId)
-  }
+  final case class Call(
+    paths: NonEmptyList[String]
+  )
 
   type CallOverrides = Map[NonEmptyList[Call], NonEmptyList[Call]]
 

@@ -76,7 +76,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           "org.scalatest" %% "scalatest" % "3.2.2" % "test"
         ),
         Seq(
-          "dev.vgerasimov" %% "scorg" % "0.1.0"
+          "dev.vgerasimov" %% "scorg" % "0.1.0",
+          "dev.vgerasimov" %% "shapelse" % "0.3.0",
         )
       ).flatten
   )

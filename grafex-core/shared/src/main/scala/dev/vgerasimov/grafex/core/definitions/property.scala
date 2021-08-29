@@ -30,11 +30,35 @@ object property {
     description: Option[String]
   ) extends Definition
 
+  /** Represents definition for char parameter. */
+  final case class CharDefinition(
+                                      name: String,
+                                      description: Option[String]
+                                    ) extends Definition
+
+  /** Represents definition for byte parameter. */
+  final case class ByteDefinition(
+                                  name: String,
+                                  description: Option[String]
+                                ) extends Definition
+
+  /** Represents definition for short parameter. */
+  final case class ShortDefinition(
+                                  name: String,
+                                  description: Option[String]
+                                ) extends Definition
+
   /** Represents definition for int parameter. */
   final case class IntDefinition(
     name: String,
     description: Option[String]
   ) extends Definition
+
+  /** Represents definition for long parameter. */
+  final case class LongDefinition(
+                                  name: String,
+                                  description: Option[String]
+                                ) extends Definition
 
   /** Represents definition for float parameter. */
   final case class FloatDefinition(
@@ -42,15 +66,16 @@ object property {
     description: Option[String]
   ) extends Definition
 
+  /** Represents definition for double parameter. */
+  final case class DoubleDefinition(
+                                  name: String,
+                                  description: Option[String]
+                                ) extends Definition
+
   /** Represents definition for string parameter. */
   final case class StringDefinition(
     name: String,
     description: Option[String]
-  ) extends Definition
-
-  /** Represents definition for any parameter which is optional (not required). */
-  final case class OptionDefinition(
-    item: Definition
   ) extends Definition
 
   /** Represents definition for list parameter. */
@@ -61,16 +86,15 @@ object property {
   ) extends Definition
 
   /** Represents definition for complex object parameter. */
-  final case class ObjectDefinition(
+  final case class ProductDefinition(
     name: String,
     fields: Map[String, Definition],
     description: Option[String]
   ) extends Definition
 
-  final case class EitherDefinition(
+  final case class CoproductDefinition(
     name: String,
-    left: Definition,
-    right: Definition,
+    fields: Map[String, Definition],
     description: Option[String]
   ) extends Definition
 

@@ -49,7 +49,7 @@ class AccountModeTest extends AnyFunSuite with ModeTestSuite {
   implicit val dec: ModeRequestDecoder[TestGraphRequest] = ModeRequestDecoder.instance {
     case req if req.calls.head.actionId.name == "node/create" =>
       resJsonDecoder
-        .decodeJson(unsafe(parse(req.asInstanceOf[ModeRequest].data.head)))
+        .decodeJson(unsafe(parse(req.asInstanceOf[ModeRequest].body.head)))
         .leftMap(x => InvalidRequest.UnsupportedAction(x.toString))
   }
 

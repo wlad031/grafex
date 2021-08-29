@@ -10,11 +10,14 @@ import dev.vgerasimov.grafex.core._
 import dev.vgerasimov.grafex.core.conversion._
 import dev.vgerasimov.grafex.core.conversion.generic.semiauto._
 import dev.vgerasimov.grafex.core.definitions.annotations.{actionId, description, modeId}
+import dev.vgerasimov.grafex.core.definitions.implicits.deriveActionDefinition
 import dev.vgerasimov.grafex.core.definitions.syntax.ActionDefinitionOps
 import dev.vgerasimov.grafex.core.definitions.{action, mode}
 import dev.vgerasimov.grafex.core.errors.InvalidRequest
 import dev.vgerasimov.grafex.modes.describe.DescribeMode._
 import dev.vgerasimov.grafex.modes.describe.DescribeMode.actions.{GetModeDefinitionAction, ListModeKeysAction}
+import dev.vgerasimov.shapelse.names.NameShapeEncoder
+import dev.vgerasimov.shapelse.{names, typenames, values}
 import io.circe.generic.auto._
 
 class DescribeMode[F[_] : Sync : RunContext] private (
@@ -23,10 +26,8 @@ class DescribeMode[F[_] : Sync : RunContext] private (
 ) extends MFunction[F, Request, Response] {
 
   private[this] lazy val myDefinition = if (amILatest) DescribeMode.definition.toLatest else DescribeMode.definition
-  private[this] lazy val fullMetadata: DescribeMode.Metadata =
-    DescribeMode.Metadata(myDefinition) ++ otherDefinitions
-      .map(DescribeMode.Metadata(_))
-      .reduce(_ ++ _)
+  private[this] lazy val fullMetadata: DescribeMode.Metadata = otherDefinitions.map(DescribeMode.Metadata(_))
+     .foldLeft(DescribeMode.Metadata(myDefinition))(_ ++ _)
 
   override def apply(request: Request): EitherET[F, Response] = {
     implicit val fm: DescribeMode.Metadata = fullMetadata
@@ -36,6 +37,14 @@ class DescribeMode[F[_] : Sync : RunContext] private (
     }
   }
 }
+
+import dev.vgerasimov.shapelse.empty.implicits.all._
+import dev.vgerasimov.shapelse.empty.instances._
+import dev.vgerasimov.shapelse.annotations.implicits.all._
+import names.implicits.all._
+import typenames.implicits.all._
+import values.implicits.all._
+import dev.vgerasimov.grafex.core.definitions.implicits._
 
 @modeId(name = "describe", version = "1")
 object DescribeMode {
@@ -67,7 +76,7 @@ object DescribeMode {
         |            `name`, `version` and `isLatest` fields.""".stripMargin
     )
     object ListModeKeysAction {
-      implicit val definition: action.Definition[this.type, Request, Response] = null
+      implicit val definition: action.Definition[this.type, Request, Response] = deriveActionDefinition[this.type, Request, Response]
 
       def apply(request: Request)(implicit fullMetadata: Metadata): EitherE[Response] =
         request match {
@@ -128,7 +137,8 @@ object DescribeMode {
 
     @actionId("get-def")
     object GetModeDefinitionAction {
-      implicit val definition: action.Definition[this.type, Request, Response] = null
+      implicit val definition: action.Definition[this.type, Request, Response] =
+        deriveActionDefinition[this.type, Request, Response]
 
       def apply(request: Request)(implicit fullMetadata: Metadata): EitherE[Response] = {
         val name = request.modeName
@@ -142,7 +152,10 @@ object DescribeMode {
           .asRight
       }
 
-      final case class Request(modeName: String, modeVersion: Option[String]) extends DescribeMode.Request
+      final case class Request(
+                                @description("Name of the mode") modeName: String,
+                                @description("Version of the mode") modeVersion: Option[String]
+                              ) extends DescribeMode.Request
       object Request {
         implicit val dec: ActionRequestDecoder[Request] = deriveJsonActionRequestDecoder[Request].asDefault
       }
@@ -183,7 +196,7 @@ object DescribeMode {
                   ad.actionDefinition.id.name,
                   ad.actionDefinition.description,
                   List() // FIXME
-//                  ad.params.map(pd => ParamDefinition(pd.name.toString)).toList
+//                  ad.actionDefinition.input.params.map(pd => ParamDefinition(pd.name.toString)).toList
                 )
               )
               .toList

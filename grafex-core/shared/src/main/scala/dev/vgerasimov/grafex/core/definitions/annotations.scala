@@ -15,4 +15,6 @@ object annotations {
 
   /** Allows to define a description of a mode/action/property. */
   final case class description(s: String) extends StaticAnnotation
+
+  final case class path(path: String) extends StaticAnnotation
 }

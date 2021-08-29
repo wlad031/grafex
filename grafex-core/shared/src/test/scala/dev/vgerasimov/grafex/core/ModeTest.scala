@@ -130,7 +130,7 @@ class ModeTest extends AnyFunSuite with ModeTestSuite {
 
   implicit val cReq: ModeRequestDecoder[Req] = ModeRequestDecoder.instance {
     case ar: ModeRequest =>
-      reqJsonDecoder.decodeJson(unsafe(parse(ar.data.head))).leftMap(e => InvalidRequest.InvalidTypeOfJson(e))
+      reqJsonDecoder.decodeJson(unsafe(parse(ar.body.head))).leftMap(e => InvalidRequest.InvalidTypeOfJson(e))
   }
 
   implicit val cRes: ModeResponseEncoder[Res] = ModeResponseEncoder.instance { (_: ModeRequest, res: Res) =>
