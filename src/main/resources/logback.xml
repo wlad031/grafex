@@ -12,4 +12,10 @@
     <root level="info">
         <appender-ref ref="STDOUT" />
     </root>
+
+    <loggers>
+        <logger name="io.micronaut.context.condition" level="DEBUG"/>
+        <logger name="dev.vgerasimov.TraceService" level="DEBUG"/>
+    </loggers>
+
 </configuration>
