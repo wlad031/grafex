@@ -1,5 +1,6 @@
 package dev.vgerasimov.graph.node;
 
+import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Single;
 import org.mapstruct.factory.Mappers;
@@ -11,7 +12,11 @@ public interface NodeService {
 
   Single<Node.Id> create(Set<String> labels, Map<String, Object> properties);
 
+  Single<Boolean> deleteById(Node.Id id);
+
   Maybe<Node> getById(Node.Id id);
+
+  Flowable<Node> getAllNodes();
 
   abstract sealed class Error extends RuntimeException permits Error.NodeCreationException {
     static final class NodeCreationException extends Error {}
@@ -36,8 +41,19 @@ public interface NodeService {
     }
 
     @Override
+    public Single<Boolean> deleteById(Node.Id id) {
+      return repository.delete(id.value());
+    }
+
+    @Override
     public Maybe<Node> getById(Node.Id id) {
       return repository.getById(id.value())
+          .map(Mappers.getMapper(Repository.Node.ModelMapper.class)::toServiceNode);
+    }
+
+    @Override
+    public Flowable<Node> getAllNodes() {
+      return repository.getAll()
           .map(Mappers.getMapper(Repository.Node.ModelMapper.class)::toServiceNode);
     }
   }

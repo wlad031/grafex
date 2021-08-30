@@ -1,5 +1,6 @@
 package dev.vgerasimov.graph.node;
 
+import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Single;
 import lombok.AllArgsConstructor;
@@ -18,6 +19,10 @@ public interface Repository {
   Single<String> save(Node node);
 
   Maybe<Node> getById(String nodeId);
+
+  Flowable<Node> getAll();
+
+  Single<Boolean> delete(String nodeId);
 
   @Data
   @AllArgsConstructor
