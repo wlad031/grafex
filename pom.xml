@@ -133,6 +133,9 @@
       <plugin>
         <groupId>io.micronaut.build</groupId>
         <artifactId>micronaut-maven-plugin</artifactId>
+        <configuration>
+          <jvmArguments>--enable-preview</jvmArguments>
+        </configuration>
       </plugin>
 
       <plugin>
