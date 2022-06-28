@@ -7,8 +7,9 @@ public class Application {
   public static void main(String[] args) {
 
     Micronaut.build(args)
-        .eagerInitSingletons(false)
+//        .eagerInitSingletons(true)
         .mainClass(Application.class)
-        .start();
+        .start()
+        .getBean(VertxDeployer.class);
   }
 }

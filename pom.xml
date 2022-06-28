@@ -18,6 +18,7 @@
     <jdk.version>17</jdk.version>
     <release.version>16</release.version>
     <micronaut.version>3.0.0</micronaut.version>
+    <vertx.version>4.1.0</vertx.version>
     <exec.mainClass>dev.vgerasimov.Application</exec.mainClass>
     <micronaut.runtime>netty</micronaut.runtime>
   </properties>
@@ -105,6 +106,18 @@
       <version>2.0.0</version>
     </dependency>
 
+    <!-- Vertx -->
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-core</artifactId>
+      <version>${vertx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-rx-java3</artifactId>
+      <version>${vertx.version}</version>
+    </dependency>
+
     <!-- Code generation -->
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -112,19 +125,8 @@
       <version>1.18.20</version>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>org.mapstruct</groupId>
-      <artifactId>mapstruct</artifactId>
-      <version>1.4.2.Final</version>
-    </dependency>
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok-mapstruct-binding</artifactId>
-      <version>0.2.0</version>
-    </dependency>
 
   </dependencies>
-
 
   <build>
     <plugins>
