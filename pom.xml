@@ -18,7 +18,7 @@
     <jdk.version>17</jdk.version>
     <release.version>16</release.version>
     <micronaut.version>3.0.0</micronaut.version>
-    <vertx.version>4.1.0</vertx.version>
+    <vertx.version>4.5.24</vertx.version>
     <exec.mainClass>dev.vgerasimov.Application</exec.mainClass>
     <micronaut.runtime>netty</micronaut.runtime>
   </properties>
